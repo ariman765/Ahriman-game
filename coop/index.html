@@ -149,10 +149,10 @@ function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;
 // ====================== НАСТРОЙКИ ======================
 const settings=Object.assign({sens:1,master:0.8,sfx:0.9,mus:0.5,mute:false},load('pdo_settings',{}));
 const DIFFS=[
- {name:'Легко',desc:'Враги слабее, их меньше, мана восстанавливается быстро.',dmg:0.5,hp:0.75,extra:0,regen:1.7,spd:0.9},
- {name:'Нормально',desc:'Задуманный баланс.',dmg:1,hp:1,extra:0,regen:1,spd:1},
- {name:'Высоко',desc:'Больше врагов, они крепче и бьют больнее.',dmg:1.35,hp:1.25,extra:1,regen:0.8,spd:1.08},
- {name:'Кошмар Тзинча',desc:'Орды, безжалостный урон, мана течёт скупо. Перемены неизбежны.',dmg:1.8,hp:1.55,extra:2,regen:0.55,spd:1.18},
+ {name:'Легко',desc:'Враги слабее, их меньше, мана восстанавливается быстро.',dmg:0.5,hp:0.75,extra:0,regen:1.7,spd:0.9,detect:1,react:1,acc:1,proj:1,loot:1,drop:0.18,bossHp:1},
+ {name:'Нормально',desc:'Враги крепче и злее, патрулей больше, припасы скромнее.',dmg:1.25,hp:1.2,extra:1,regen:0.85,spd:1.08,detect:1.15,react:0.85,acc:0.75,proj:1.1,loot:0.85,drop:0.14,bossHp:1.15},
+ {name:'Высоко',desc:'Плотные ряды, тяжёлый урон, скупая мана. Опытному стрелку придётся попотеть.',dmg:1.7,hp:1.5,extra:2,regen:0.55,spd:1.18,detect:1.3,react:0.65,acc:0.45,proj:1.22,loot:0.65,drop:0.1,bossHp:1.35},
+ {name:'Кошмар Тзинча',desc:'Орды, безжалостный урон, мана течёт скупо. Перемены неизбежны.',dmg:2.15,hp:1.8,extra:3,regen:0.35,spd:1.28,detect:1.5,react:0.45,acc:0.25,proj:1.35,loot:0.5,drop:0.06,bossHp:1.55},
 ];
 let diffIdx=clamp(load('pdo_diff',1)|0,0,3);
 
@@ -885,6 +885,8 @@ function snapP(){return {hp:P.hp,ar:P.ar,ammo:P.ammo,mana:P.mana,w:Object.assign
 function setP(s){P.hp=s.hp;P.ar=s.ar;P.ammo=s.ammo;P.mana=s.mana;P.w=Object.assign({},s.w);P.cur=P.w[s.cur]?s.cur:1;}
 function defaultP(stage){return {hp:100,ar:stage>2?25:0,ammo:60+stage*15,mana:100,w:{1:true,2:stage>=1,3:true},cur:1};}
 const D=()=>DIFFS[diffIdx];
+function keepPick(type,x,y){ if(type==='shotgun') return true; const L=D().loot; return L>=0.99||(((x*13+y*7)|0)%10)<Math.max(3,Math.round(L*10)); }
+function pickAmt(base,small){ return Math.max(1,Math.round(base*(small?0.4:1)*D().loot)); }
 function groundIndex(stage){let n=0;for(let i=0;i<stage;i++) if(LEVELS[i].type==='ground') n++; return n;}
 function msg(t){G.msgs.push({t,life:2.5}); if(G.msgs.length>4) G.msgs.shift();}
 
@@ -910,9 +912,9 @@ function loadStage(idx){
  G.grid=new Uint8Array(G.mw*G.mh); G.doorOpen=new Float32Array(G.mw*G.mh); G.doorTimer=new Float32Array(G.mw*G.mh); G.flow=new Int16Array(G.mw*G.mh); G.flowCell=-1; G.flowKey='';
  G.tex=[null,makeTex(th.wallA,R),makeTex(th.wallB,R),makeTex(th.wallC,R),texDoor(th.door,R),texExit(th.exit,R)];
  G.floorTex=texFloor(th.floor,R); G.ceilTex=texCeil(th.ceil,R); G.fog=th.fog; G.fogK=th.fogK;
- const d=D(), gi=groundIndex(idx); const hpm=d.hp*(1+0.1*gi)*Net.hpScale();
+ const d=D(), gi=groundIndex(idx); const hpm=d.hp*(1+0.1*gi)*Net.hpScale(); const ex=d.extra+Net.extraBonus();
  const pal=L.pal||''; const fr=k=>SPR.e[k+(pal==='S'||pal==='I'||pal==='B'||pal==='H'?(SPR.e[k+pal]?pal:''):'')]||SPR.e[k];
- const addE=(type,x,y)=>{ const def=EDEF[type]; const e={code:{rusher:'r',shooter:'s',brute:'b',boss:'B',barrel:'x'}[type],type,x,y,r:def.r,h:def.h,hp:def.hp*(type==='barrel'?1:hpm),max:0,frames:type==='barrel'?null:fr(type),awake:false,see:false,lt:Math.random()*0.3,cd:rand(0.5,1.5),atk:0,pain:0,flash:0,anim:Math.random()*2,dead:false,gib:false,counted:type!=='barrel',strafe:Math.random()<0.5?1:-1,chargeT:5,mode:'walk',summonT:8};
+ const addE=(type,x,y)=>{ const def=EDEF[type]; const e={code:{rusher:'r',shooter:'s',brute:'b',boss:'B',barrel:'x'}[type],type,x,y,r:def.r,h:def.h,hp:def.hp*(type==='barrel'?1:hpm)*(type==='boss'?(d.bossHp||1):1),max:0,frames:type==='barrel'?null:fr(type),awake:false,see:false,lt:Math.random()*0.3,cd:rand(0.5,1.5),atk:0,pain:0,flash:0,anim:Math.random()*2,dead:false,gib:false,counted:type!=='barrel',strafe:Math.random()<0.5?1:-1,chargeT:5,mode:'walk',summonT:8};
   e.max=e.hp; G.enemies.push(e); if(e.counted) G.total++; if(type==='boss') G.boss=e; return e; };
  for(let y=0;y<G.mh;y++) for(let x=0;x<G.mw;x++){
   const ch=m[y][x], i=y*G.mw+x, cx=x+0.5, cy=y+0.5;
@@ -920,11 +922,11 @@ function loadStage(idx){
   switch(ch){
    case 'P': G.px=cx;G.py=cy; break;
    case 'r': addE('rusher',cx,cy); break; case 's': addE('shooter',cx,cy); break; case 'b': addE('brute',cx,cy); break; case 'B': addE('boss',cx,cy); break;
-   case 'e': if((d.extra+Net.extraBonus())>=1){ addE(((x*7+y*3)%2)?'rusher':'shooter',cx,cy); if((d.extra+Net.extraBonus())>=2) addE('rusher',cx+0.3,cy+0.2);} break;
-   case 'E': if((d.extra+Net.extraBonus())>=2) addE('brute',cx,cy); break;
-   case 'h': G.pickups.push({type:'health',x:cx,y:cy}); break; case 'a': G.pickups.push({type:'ammo',x:cx,y:cy}); break;
-   case 'm': G.pickups.push({type:'mana',x:cx,y:cy}); break; case 'k': G.pickups.push({type:'armor',x:cx,y:cy}); break;
-   case 'w': G.pickups.push({type:P.w[2]?'ammo':'shotgun',x:cx,y:cy}); break;
+   case 'e': if(ex>=1){ addE(((x*7+y*3)%2)?'rusher':'shooter',cx,cy); if(ex>=2) addE('rusher',cx+0.3,cy+0.2); if(ex>=3) addE(((x*5+y)%2)?'shooter':'rusher',cx-0.3,cy-0.2);} break;
+   case 'E': if(ex>=2) addE('brute',cx,cy); if(ex>=3) addE('shooter',cx+0.45,cy+0.2); break;
+   case 'h': if(keepPick('health',x,y)) G.pickups.push({type:'health',x:cx,y:cy}); break; case 'a': if(keepPick('ammo',x,y)) G.pickups.push({type:'ammo',x:cx,y:cy}); break;
+   case 'm': if(keepPick('mana',x,y)) G.pickups.push({type:'mana',x:cx,y:cy}); break; case 'k': if(keepPick('armor',x,y)) G.pickups.push({type:'armor',x:cx,y:cy}); break;
+   case 'w': { const t=P.w[2]?'ammo':'shotgun'; if(keepPick(t,x,y)) G.pickups.push({type:t,x:cx,y:cy}); } break;
    case 'c': G.decor.push({spr:SPR.candle,x:cx,y:cy,h:0.55}); break;
    case 'p': G.decor.push({spr:SPR.statue,x:cx,y:cy,h:1.0}); G.grid[i]=6; break;
    case 'x': addE('barrel',cx,cy); break;
@@ -983,10 +985,10 @@ function killEnemy(e,over,splash){
  if(splash||over>12||Math.random()<0.45||e.type==='boss'){ e.gib=true; particles(e.x,e.y,e.h*0.5,big?70:35,'gib',big?5:3.5,big?0.09:0.07,14); particles(e.x,e.y,e.h*0.6,25,'blood',3,0.04,1); sndAt('gib',e.x,e.y); boom(e.x,e.y,0.5); }
  else sndAt('edie',e.x,e.y);
  if(e.type==='boss'){ G.endTimer=3; Snd.play('roar',1); for(let i=0;i<8;i++) G.timers.push({t:i*0.3,fn:()=>explode(e.x+rand(-1,1),e.y+rand(-1,1),1.2,0,true)}); }
- if(Math.random()<0.18&&e.type!=='boss') G.pickups.push({type:Math.random()<0.5?'ammo':'mana',x:e.x,y:e.y,small:true});
+ if(Math.random()<D().drop&&e.type!=='boss') G.pickups.push({type:Math.random()<0.5?'ammo':'mana',x:e.x,y:e.y,small:true});
 }
 let growlCd=0;
-function wake(e){ if(e.awake) return; e.awake=true; e.cd=rand(0.3,1.2); if(growlCd<=0){ Snd.play(e.type==='boss'?'roar':'growl',vol(e.x,e.y)); growlCd=0.4; } if(e.type==='boss') Net.msgAll('Гранд-магистр: «Изыди, колдун!»'); }
+function wake(e){ if(e.awake) return; e.awake=true; e.cd=rand(0.3,1.2)*D().react; if(growlCd<=0){ Snd.play(e.type==='boss'?'roar':'growl',vol(e.x,e.y)); growlCd=0.4; } if(e.type==='boss') Net.msgAll('Гранд-магистр: «Изыди, колдун!»'); }
 
 // ---------- стрельба игрока ----------
 const WEAP={1:{name:'ВАРП-ОГОНЬ',cd:0.12,cost:1,res:'ammo'},2:{name:'ДИСКИ ТЗИНЧА',cd:0.8,cost:3,res:'ammo'},3:{name:'ПСИХИЧЕСКОЕ КОПЬЁ',cd:0.5,cost:18,res:'mana'}};
@@ -1009,7 +1011,7 @@ function playerFire(){
  else { const dx=Math.cos(G.pa),dy=Math.sin(G.pa); if(Net.client) Net.send({t:'psy',x:G.px,y:G.py,a:G.pa}); else G.projs.push({x:G.px+dx*0.4,y:G.py+dy*0.4,vx:dx*10,vy:dy*10,dmg:55,spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); G.recoil=8; G.pitch-=3; G.light=0.5; Snd.play('psy',1); }
  if(!Net.client) wakeAround(G.px,G.py);
 }
-function wakeAround(x,y){ for(const e of G.enemies){ if(!e.dead&&!e.awake&&e.type!=='barrel'){ const d=Math.hypot(e.x-x,e.y-y); if(d<6||(d<12&&los(e.x,e.y,x,y))) wake(e);} } }
+function wakeAround(x,y){ const det=D().detect; for(const e of G.enemies){ if(!e.dead&&!e.awake&&e.type!=='barrel'){ const d=Math.hypot(e.x-x,e.y-y); if(d<6*det||(d<12*det&&los(e.x,e.y,x,y))) wake(e);} } }
 function enemyShoot(e,ang,speed,dmg,spr){ G.projs.push({x:e.x+Math.cos(ang)*0.5,y:e.y+Math.sin(ang)*0.5,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,dmg,spr,own:'e',life:4,z:e.h*0.55}); }
 
 // ---------- ИИ врагов ----------
@@ -1019,7 +1021,7 @@ function updateEnemy(e,dt){
  const def=EDEF[e.type], d=D(), gi=groundIndex(G.stage);
  const dx=T.x-e.x, dy=T.y-e.y, dist=Math.hypot(dx,dy)||0.01, ux=dx/dist, uy=dy/dist;
  e.flash-=dt; e.lt-=dt;
- if(!e.awake){ if(e.lt<=0){ e.lt=0.3; if(dist<14&&los(e.x,e.y,T.x,T.y)) wake(e);} return; }
+ if(!e.awake){ if(e.lt<=0){ e.lt=0.3*d.react; if(dist<14*d.detect&&los(e.x,e.y,T.x,T.y)) wake(e);} return; }
  if(e.lt<=0){ e.lt=0.12+Math.random()*0.1; e.see=los(e.x,e.y,T.x,T.y); }
  e.cd-=dt; e.atk-=dt; e.pain-=dt;
  if(e.pain>0) return;
@@ -1028,28 +1030,28 @@ function updateEnemy(e,dt){
  const fd=()=>{const f=flowDir(e); if(f){mx=f[0];my=f[1];} else {mx=ux;my=uy;}};
  const lead=(spd)=>{const t=dist/spd; const pvx=T.vx||0,pvy=T.vy||0; return Math.atan2(T.y+pvy*t*0.5-e.y,T.x+pvx*t*0.5-e.x);};
  if(e.type==='rusher'){
-  if(e.see&&dist<8){mx=ux;my=uy;} else fd();
+  if(e.see&&dist<8*d.detect){mx=ux;my=uy;} else fd();
   if(dist<def.range+0.1&&e.cd<=0){ e.cd=def.cd; e.atk=0.3; sndAt('claw',e.x,e.y,1.3); Net.hurt(T,def.melee); }
   if(dist<def.range){mx=0;my=0;}
  } else if(e.type==='shooter'||e.type==='brute'){
   const keep=e.type==='brute'?3:5;
   if(e.see){ if(dist>keep+3){mx=ux;my=uy;} else if(dist<keep-1.5){mx=-ux;my=-uy;} else {mx=-uy*e.strafe*0.7;my=ux*e.strafe*0.7; if(Math.random()<dt*0.5) e.strafe*=-1;}
    if(e.cd<=0&&dist<18){ e.atk=0.35;
-    if(e.type==='shooter'){ e.cd=rand(1.4,2.4)/aggro; enemyShoot(e,lead(def.ps)+rand(-0.05,0.05),def.ps,def.dmg,SPR.plasma); sndAt('eshot',e.x,e.y); }
+    if(e.type==='shooter'){ e.cd=rand(1.4,2.4)/aggro; enemyShoot(e,lead(def.ps*d.proj)+rand(-0.05,0.05)*d.acc,def.ps*d.proj,def.dmg,SPR.plasma); sndAt('eshot',e.x,e.y); }
     else if(dist<1.4){ e.cd=1.2; sndAt('hammer',e.x,e.y,1.3); Net.hurt(T,def.melee); }
-    else { e.cd=rand(1.8,2.8)/aggro; const a=Math.atan2(dy,dx); for(let k=-1;k<=1;k++) enemyShoot(e,a+k*0.14,def.ps,def.dmg,SPR.fire); sndAt('fireball',e.x,e.y); }
+    else { e.cd=rand(1.8,2.8)/aggro; const a=Math.atan2(dy,dx); for(let k=-1;k<=1;k++) enemyShoot(e,a+k*0.14,def.ps*d.proj,def.dmg,SPR.fire); sndAt('fireball',e.x,e.y); }
    }
   } else fd();
   if(e.type==='brute'&&e.see&&dist<1.4&&e.cd<=0){ e.cd=1.2; e.atk=0.3; sndAt('hammer',e.x,e.y,1.3); Net.hurt(T,def.melee); }
  } else if(e.type==='boss'){
-  const enraged=e.hp<e.max*0.5;
+  const enraged=e.hp<e.max*(d.extra>=2?0.6:0.5);
   if(e.mode==='charge'){ e.ct-=dt; mx=e.cx; my=e.cy; if(dist<1.3){ Net.hurt(T,def.melee); sndAt('hammer',e.x,e.y,1.5); G.shake=12; e.mode='walk'; e.cd=1; } if(e.ct<=0) e.mode='walk';
    if(!moveEnt(e,mx*6.5*dt,my*6.5*dt)) e.mode='walk'; e.anim+=dt*12; return; }
   if(e.see){ mx=ux;my=uy; if(dist<2.5){mx=-uy*e.strafe;my=ux*e.strafe;} } else fd();
   e.chargeT-=dt;
-  if(e.cd<=0&&e.see){ e.cd=(enraged?1.0:1.5)/aggro; e.atk=0.4; const a=Math.atan2(dy,dx), n=enraged?7:5; for(let k=0;k<n;k++) enemyShoot(e,a+(k-(n-1)/2)*0.13,def.ps,def.dmg,SPR.holy); sndAt('eshot',e.x,e.y,1.4); sndAt('fireball',e.x,e.y,0.8); }
-  if(e.chargeT<=0&&e.see&&dist>2.5){ e.chargeT=enraged?4:7; e.mode='charge'; e.ct=1.1; e.cx=ux; e.cy=uy; sndAt('roar',e.x,e.y,1.5); e.atk=1.1; }
-  if(enraged){ e.summonT-=dt; if(e.summonT<=0){ e.summonT=9; Net.msgAll('Гранд-магистр призывает Серых Рыцарей!'); for(let k=0;k<2;k++){ for(let tries=0;tries<10;tries++){ const sx=e.x+rand(-2.5,2.5), sy=e.y+rand(-2.5,2.5); if(!blocked(sx,sy,0.35)){ const n={...e}; Object.assign(n,{code:'R',type:'rusher',r:0.3,h:0.72,hp:40*d.hp*1.5,max:40,frames:SPR.e.rusherS,awake:true,mode:'walk',x:sx,y:sy,cd:1,counted:true,dead:false,gib:false,flash:0,pain:0,atk:0}); G.enemies.push(n); G.total++; boom(sx,sy,0.6); break; } } } } }
+  if(e.cd<=0&&e.see){ e.cd=(enraged?1.0:1.5)/aggro; e.atk=0.4; const a=Math.atan2(dy,dx), n=(enraged?7:5)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++) enemyShoot(e,a+(k-(n-1)/2)*0.13,def.ps*d.proj,def.dmg,SPR.holy); sndAt('eshot',e.x,e.y,1.4); sndAt('fireball',e.x,e.y,0.8); }
+  if(e.chargeT<=0&&e.see&&dist>2.5){ e.chargeT=(enraged?4:7)*d.react; e.mode='charge'; e.ct=1.1; e.cx=ux; e.cy=uy; sndAt('roar',e.x,e.y,1.5); e.atk=1.1; }
+  if(enraged){ e.summonT-=dt; if(e.summonT<=0){ e.summonT=d.extra>=3?6:d.extra>=2?7:9; Net.msgAll('Гранд-магистр призывает Серых Рыцарей!'); const adds=2+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<adds;k++){ for(let tries=0;tries<10;tries++){ const sx=e.x+rand(-2.5,2.5), sy=e.y+rand(-2.5,2.5); if(!blocked(sx,sy,0.35)){ const n={...e}; Object.assign(n,{code:'R',type:'rusher',r:0.3,h:0.72,hp:40*d.hp*1.5*Net.hpScale(),max:40,frames:SPR.e.rusherS,awake:true,mode:'walk',x:sx,y:sy,cd:1,counted:true,dead:false,gib:false,flash:0,pain:0,atk:0}); G.enemies.push(n); G.total++; boom(sx,sy,0.6); break; } } } } }
  }
  // разделение
  for(const o of G.enemies){ if(o===e||o.dead||o.type==='barrel') continue; const ox=e.x-o.x,oy=e.y-o.y,od=Math.hypot(ox,oy),rr=e.r+o.r; if(od<rr&&od>0.001){ mx+=ox/od*0.8; my+=oy/od*0.8; } }
@@ -1058,12 +1060,12 @@ function updateEnemy(e,dt){
 function moveEnt(e,dx,dy){ let m=false; if(!blocked(e.x+dx,e.y,e.r)){e.x+=dx;m=true;} if(!blocked(e.x,e.y+dy,e.r)){e.y+=dy;m=true;} return m; }
 
 // ---------- обновление наземного уровня ----------
-function applyPickup(type,small){ let ok=true; const s=small?0.4:1;
+function applyPickup(type,small){ let ok=true;
   switch(type){
-   case 'health': if(P.hp>=100) ok=false; else {P.hp=Math.min(100,P.hp+30);msg('+30 здоровья');} break;
-   case 'ammo': if(P.ammo>=250) ok=false; else {P.ammo=Math.min(250,P.ammo+Math.round(40*s));msg('+'+Math.round(40*s)+' варп-заряда');} break;
-   case 'mana': if(P.mana>=100) ok=false; else {P.mana=Math.min(100,P.mana+Math.round(40*s));msg('+'+Math.round(40*s)+' маны');} break;
-   case 'armor': if(P.ar>=100) ok=false; else {P.ar=Math.min(100,P.ar+50);msg('+50 брони');} break;
+   case 'health': if(P.hp>=100) ok=false; else {const n=pickAmt(30,small);P.hp=Math.min(100,P.hp+n);msg('+'+n+' здоровья');} break;
+   case 'ammo': if(P.ammo>=250) ok=false; else {const n=pickAmt(40,small);P.ammo=Math.min(250,P.ammo+n);msg('+'+n+' варп-заряда');} break;
+   case 'mana': if(P.mana>=100) ok=false; else {const n=pickAmt(40,small);P.mana=Math.min(100,P.mana+n);msg('+'+n+' маны');} break;
+   case 'armor': if(P.ar>=100) ok=false; else {const n=pickAmt(50,false);P.ar=Math.min(100,P.ar+n);msg('+'+n+' брони');} break;
    case 'shotgun': P.w[2]=true; P.cur=2; P.ammo=Math.min(250,P.ammo+20); msg('Постигнута сила: ДИСКИ ТЗИНЧА! [2]'); break;
   }
  if(ok){ G.pick=0.4; Snd.play(type==='mana'?'mpick':'pickup',1); } return ok; }
@@ -1369,11 +1371,12 @@ const Space={S:null,spr:{},bg:null,
   const S=this.S, d=D(), r=Math.random(), hm=this.hpm();
   const mkE=(type,x,y,o)=>{ const base={fighter:{hp:20,r:9,spr:'fighter'},inter:{hp:12,r:8,spr:'inter'},gunship:{hp:90,r:15,spr:'gunship'}}[type];
    const e=Object.assign({type,x,y,y0:y,t:0,hp:base.hp*hm,r:base.r,spr:base.spr,cd:rand(0.8,2),flash:0},o||{}); S.en.push(e); G.total++; return e; };
-  if(r<0.45){ const y=rand(30,H-30), n=(d.extra+Net.extraBonus())>=1?6:4; for(let i=0;i<n;i++) mkE('fighter',W+20+i*22,y,{amp:rand(20,45),ph:i*0.5,vx:-rand(95,120)}); }
-  else if(r<0.75){ const n=2+d.extra+Net.extraBonus()+S.si; for(let i=0;i<n;i++) mkE('inter',W+20+i*30,rand(20,H-20),{vx:-rand(170,220)}); }
-  else { mkE('gunship',W+30,rand(40,H-40),{vx:-60,hold:rand(260,330),life:12}); if((d.extra+Net.extraBonus())>=2) mkE('gunship',W+60,rand(40,H-40),{vx:-60,hold:rand(250,320),life:12}); }
+  const ex=d.extra+Net.extraBonus();
+  if(r<0.45){ const y=rand(30,H-30), n=4+2*Math.min(ex,3); for(let i=0;i<n;i++) mkE('fighter',W+20+i*22,y,{amp:rand(20,45),ph:i*0.5,vx:-rand(95,120)}); }
+  else if(r<0.75){ const n=2+ex+S.si; for(let i=0;i<n;i++) mkE('inter',W+20+i*30,rand(20,H-20),{vx:-rand(170,220)}); }
+  else { const gn=1+(ex>=2?1:0)+(ex>=3?1:0); for(let i=0;i<gn;i++) mkE('gunship',W+30+i*30,rand(40,H-40),{vx:-60,hold:rand(250,330),life:12}); }
  },
- spawnBoss(){ const S=this.S, big=S.L.boss==='cruiser'; const hp=(big?1800:1000)*this.hpm();
+ spawnBoss(){ const S=this.S, d=D(), big=S.L.boss==='cruiser'; const hp=(big?1800:1000)*this.hpm()*(d.bossHp||1);
   S.boss={type:'boss',big,x:W+90,y:H/2,t:0,hp,max:hp,rx:big?88:64,ry:big?38:26,spr:big?'cruiser':'frigate',cd:2,pat:0,flash:0};
   S.warn=2.5; Snd.play('roar',1); },
  eshot(x,y,a,s,dmgK=1,col='#ff4433'){ this.S.eb.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,col,dmg:8*dmgK}); },
@@ -1413,12 +1416,12 @@ const Space={S:null,spr:{},bg:null,
    for(const s2 of ships){ if(e.hp>0&&Math.hypot(e.x-s2.x-10,e.y-s2.y)<e.r+8){ Net.shipHurt(s2,20); e.hp=0; this.kill(e); } }
   }
   // босс
-  const B=S.boss; if(B&&B.hp>0){ B.t+=dt; B.flash-=dt; B.cd-=dt; const enr=B.hp<B.max*0.5, tx=B.big?286:300; const tb=near(B.x,B.y);
+  const B=S.boss; if(B&&B.hp>0){ B.t+=dt; B.flash-=dt; B.cd-=dt; const enr=B.hp<B.max*(d.extra>=2?0.6:0.5), tx=B.big?286:300; const tb=near(B.x,B.y);
    if(B.x>tx) B.x-=60*dt; B.y=H/2+Math.sin(B.t*(enr?1.1:0.7))*(H/2-B.ry-12);
    if(B.cd<=0&&B.x<W){ B.pat=(B.pat+1)%3; B.cd=(enr?1.0:1.5)/d.spd; const a=Math.atan2(tb.y-B.y,tb.x-B.x);
-    if(B.pat===0){ const n=B.big?7:5; for(let k=0;k<n;k++) this.eshot(B.x-B.rx,B.y,a+(k-(n-1)/2)*0.15,160*d.spd,1.3); Snd.play('eshot',0.8); }
-    else if(B.pat===1){ const n=B.big?20:14; for(let k=0;k<n;k++) this.eshot(B.x,B.y,k/n*Math.PI*2+B.t,110*d.spd,1.2,'#88ddff'); Snd.play('fireball',0.8); }
-    else { const n=(B.big?3:2)+(Net.n>2?1:0); for(let k=0;k<n;k++){ S.en.push({type:'inter',x:B.x-20,y:B.y+(k-n/2)*20,y0:0,t:0,hp:12*this.hpm(),r:8,spr:'inter',cd:9,flash:0,vx:-200}); G.total++; } Snd.play('growl',0.5); }
+    if(B.pat===0){ const n=(B.big?7:5)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++) this.eshot(B.x-B.rx,B.y,a+(k-(n-1)/2)*0.15,160*d.spd,1.3); Snd.play('eshot',0.8); }
+    else if(B.pat===1){ const n=(B.big?20:14)+(d.extra>=3?4:d.extra>=2?2:0); for(let k=0;k<n;k++) this.eshot(B.x,B.y,k/n*Math.PI*2+B.t,110*d.spd,1.2,'#88ddff'); Snd.play('fireball',0.8); }
+    else { const n=(B.big?3:2)+(d.extra>=3?2:d.extra>=2?1:0)+(Net.n>2?1:0); for(let k=0;k<n;k++){ S.en.push({type:'inter',x:B.x-20,y:B.y+(k-n/2)*20,y0:0,t:0,hp:12*this.hpm(),r:8,spr:'inter',cd:9,flash:0,vx:-200}); G.total++; } Snd.play('growl',0.5); }
     if(B.big&&enr&&Math.random()<0.5){ for(let k=0;k<5;k++) G.timers.push({t:k*0.12,fn:()=>{ const t2=near(B.x,B.y); if(B.hp>0) this.eshot(B.x-B.rx,B.y,Math.atan2(t2.y-B.y,t2.x-B.x),220*d.spd,1,'#ffffff'); }}); }
    }
    for(const t of G.timers){ t.t-=dt; if(t.t<=0&&!t.done){t.done=true;t.fn();} } G.timers=G.timers.filter(t=>!t.done);
@@ -1447,11 +1450,11 @@ const Space={S:null,spr:{},bg:null,
   for(const m of G.msgs) m.life-=dt; G.msgs=G.msgs.filter(m=>m.life>0);
  },
  applyPick(type){ const sh=this.S.ship; G.pick=0.4; Snd.play('pickup',1);
-   if(type==='hull'){sh.hull=Math.min(100,sh.hull+25);msg('+25 корпуса');} else if(type==='mana'){P.mana=Math.min(100,P.mana+35);msg('+35 маны');} else {sh.power=Math.min(3,sh.power+1);msg('Орудия усилены: '+sh.power);} },
+   if(type==='hull'){const n=pickAmt(25,false);sh.hull=Math.min(100,sh.hull+n);msg('+'+n+' корпуса');} else if(type==='mana'){const n=pickAmt(35,false);P.mana=Math.min(100,P.mana+n);msg('+'+n+' маны');} else {sh.power=Math.min(3,sh.power+1);msg('Орудия усилены: '+sh.power);} },
  fxUpdate(dt){ const S=this.S; for(const f of S.fx){f.x+=f.vx*dt;f.y+=f.vy*dt;f.life-=dt;} S.fx=S.fx.filter(f=>f.life>0); for(const b of S.booms) b.t+=dt; S.booms=S.booms.filter(b=>b.t<0.6); if(S.fx.length>600) S.fx.splice(0,S.fx.length-600); },
  hitE(e,b){ const S=this.S; e.hp-=b.dmg; e.flash=0.06; if(b.psy) { this.sboom(b.x,b.y,12); for(const o of S.en){ if(o!==e&&o.hp>0&&Math.hypot(o.x-b.x,o.y-b.y)<35){o.hp-=30; if(o.hp<=0) this.kill(o);} } }
   if(e.hp<=0) this.kill(e); },
- kill(e){ const S=this.S; G.kills++; this.sboom(e.x,e.y,e.type==='gunship'?18:10); if(Math.random()<(e.type==='gunship'?0.6:0.1)){ const r=Math.random(); S.pk.push({x:e.x,y:e.y,type:r<0.4?'hull':r<0.75?'mana':'power'}); } },
+ kill(e){ const S=this.S; G.kills++; this.sboom(e.x,e.y,e.type==='gunship'?18:10); if(Math.random()<(e.type==='gunship'?0.6:0.1)*D().loot){ const r=Math.random(); S.pk.push({x:e.x,y:e.y,type:r<0.4?'hull':r<0.75?'mana':'power'}); } },
  render(){
   const S=this.S, sh=S.ship; const ox=S.shake?rand(-1,1)*S.shake:0, oy=S.shake?rand(-1,1)*S.shake:0;
   ctx.save(); ctx.translate(ox|0,oy|0);

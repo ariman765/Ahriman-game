@@ -1,4 +1,4 @@
-/* Город Варпа — процедурная пиксель-графика v2 (персонажи ~40 px, фракции, демоны, эмоции). Без сторонних ассетов.
+/* Варповский очаг — процедурная пиксель-графика v2 (персонажи ~40 px, фракции, демоны, эмоции). Без сторонних ассетов.
    Данные фракций: window.FACTIONS (factions.js) поверх встроенного запасного набора ниже. */
 'use strict';
 window.ART = (() => {
@@ -183,6 +183,10 @@ const BUILTIN = {
   const EPAL = { w: '#f4f0e6', k: '#16141a', r: '#c8202a', g: '#e0b040', y: '#f0d020', b: '#2a5ad8', G: '#3ac85a', c: '#4ff0ff', m: '#ff6ad0', o: '#ff8a1a' };
 
   function drawFigure(g, L, dir, pose, frame, blink) {
+    // жесты/позы: pose = 'g:<id>' (см. GEST)
+    const gest = typeof pose === 'string' && pose.slice(0, 2) === 'g:' ? pose.slice(2) : null;
+    if (gest) { pose = gest === 'kneel' || gest === 'pray' ? 'kneel' : 'idle'; if (gest === 'laugh') L = Object.assign({}, L, { mouth: 'grin', eyes: 'closed' }); else if (gest === 'cry') L = Object.assign({}, L, { mouth: 'shout', brows: 'angry' }); }
+    let gtip = null;
     const ft = featOf(L), dk = L.body === 'daemon' ? ft.daemon : null;
     const B = dk === 'horror' ? BODY.horror : (BODY[L.body] || BODY.astartes);
     const R = (x, y, w, h, c) => { if (w > 0 && h > 0) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); } };
@@ -190,15 +194,15 @@ const BUILTIN = {
     const P = L.prim, S = L.sec, T = L.trim, E = L.eye, Pd = sh(P, -.32), Pl = sh(P, .22), Sd = sh(S, -.35), Td = sh(T, -.3);
     const skin = L.skin, skD = sh(skin, -.22), skL = sh(skin, .2), hc = L.hairC, hd = sh(hc, -.3), hl = sh(hc, .35);
     const acc = new Set(L.acc || []);
-    const sit = pose === 'sit', walk = pose === 'walk';
+    const sit = pose === 'sit', walk = pose === 'walk', kneel = pose === 'kneel';
     const FL = FLN;
     const rise = walk && (frame % 2 === 1) ? 1 : 0;
-    const breath = pose === 'idle' && frame % 2 === 1 ? 1 : 0;
-    const drop = sit ? Math.round(B.leg * .5) : 0;
+    const breath = (pose === 'idle' || gest === 'laugh') && frame % 2 === 1 ? 1 : 0;
+    const drop = sit ? Math.round(B.leg * .5) : kneel ? Math.round(B.leg * .4) : 0;
     const legTop = FL - B.leg;
     const tT = legTop - B.th + drop - rise;
     const tL = CX - (B.tw >> 1), tR = tL + B.tw;
-    const hx = CX - 6, hy = tT - B.hd + breath;
+    const hx = CX - 6, hy = tT - B.hd + breath + (gest === 'bow' ? 3 : 0);
     const armoured = L.body === 'astartes' || L.body === 'bloated';
     const isD = L.body === 'daemon';
     const TC = isD ? skin : P, TCd = isD ? skD : Pd, TCl = isD ? skL : Pl;
@@ -215,6 +219,13 @@ const BUILTIN = {
     const legs = () => {
       const lw = B.lw, xL = CX - (B.gap >> 1) - lw, xR = CX + (B.gap - (B.gap >> 1));
       const hoof = (x, y) => { if (isD) { R(x, y, lw, 2, '#2a1a14'); R(x + lw - 1, y - 1, 1, 1, '#2a1a14'); } };
+      if (kneel) { // одно колено на земле
+        const kt = legTop + drop - rise;
+        if (dir === 'left') { R(CX - 7, kt, lw, 5, legC); R(CX - 8, kt + 4, lw, FL - kt - 4, legC); R(CX - 10, FL - 3, lw + 2, 3, boot); R(CX - 1, kt + 2, lw + 4, lw - 1, sh(legC, -.18)); R(CX + 2, FL - 3, lw + 2, 3, sh(boot, -.2)); return; }
+        R(xL, kt, lw, FL - kt - 2, legC); R(xL, FL - 3, lw, 3, sh(boot, -.15)); R(xL, FL - 6, lw, 1, armoured ? Pl : sh(legC, .15));
+        R(xR, kt, lw, 4, legC); R(xR, kt + 4, lw, FL - kt - 4, sh(legC, -.1)); R(xR, FL - 4, lw, 4, boot); if (armoured) R(xR, kt + 3, lw, 2, P);
+        return;
+      }
       if (sit) {
         if (dir === 'down') { for (const x of [xL, xR]) { R(x, FL - 7, lw, 7, legC); R(x, FL - 7, lw, 2, armoured ? Pl : sh(legC, .15)); R(x, FL - 3, lw, 3, boot); hoof(x, FL - 2); } }
         else if (dir === 'up') { for (const x of [xL, xR]) { R(x, FL - 5, lw, 5, legC); R(x, FL - 2, lw, 2, boot); } }
@@ -288,6 +299,29 @@ const BUILTIN = {
     const arms = () => {
       const aw = B.arm, al = B.th - 2;
       const armC = isD ? skin : armoured ? P : Pd, handC = isD ? skin : Sd;
+      if (gest && gest !== 'kneel') {
+        const aC2 = sh(armC, -.12);
+        if (dir === 'left') { const x = CX - 2;
+          if (gest === 'sorcery' || gest === 'wave' || gest === 'cry') { const o = gest === 'wave' ? (frame % 2 ? 1 : -1) : 0; R(x, tT - 6, aw, 9, armC); R(x - 1 + o, tT - 9, aw + 1, 3, handC); gtip = [x + (aw >> 1) + o, tT - 10]; }
+          else if (gest === 'point') { R(x - 10, tT + 3, 12, 3, armC); R(x - 12, tT + 3, 2, 2, handC); gtip = [x - 12, tT + 3]; }
+          else if (gest === 'laugh') { R(x - 3, tT + 7, aw + 3, 3, armC); R(x - 4, tT + 6, 2, 4, handC); }
+          else { R(x - 4, tT + 4, aw + 4, 3, armC); R(x - 6, tT + 3, 3, 4, handC); gtip = [x - 5, tT + 2]; }
+          hands = gtip ? [gtip] : [[x, tT + al]]; return true;
+        }
+        const x0 = tL - aw, x1 = tR, back = dir === 'up';
+        const normL = () => { R(x0, tT + 2, aw, al - 2, armC); R(x0, tT + 2, 1, al - 2, sh(armC, .15)); R(x0, tT + al, aw, 3, handC); };
+        const normR = () => { R(x1, tT + 2, aw, al - 2, aC2); R(x1, tT + al, aw, 3, handC); };
+        const up = (x, c, o = 0) => { R(x, tT - 6, aw, 9, c); R(x + o, tT - 9, aw, 3, handC); };
+        if (gest === 'aquila') { R(x0, tT + 2, aw, 4, armC); R(x1, tT + 2, aw, 4, aC2); if (!back) { R(tL - 1, tT + 5, CX - tL + 2, 3, armC); R(CX - 1, tT + 5, tR - CX + 2, 3, aC2); R(CX - 4, tT + 4, 4, 3, handC); R(CX, tT + 4, 4, 3, handC); R(CX - 7, tT + 3, 3, 1, handC); R(CX + 4, tT + 3, 3, 1, handC); R(CX - 1, tT + 3, 2, 1, T); } gtip = [CX, tT + 4]; }
+        else if (gest === 'pray') { R(x0, tT + 2, aw, 5, armC); R(x1, tT + 2, aw, 5, aC2); if (!back) { R(tL - 1, tT + 5, CX - tL, 2, armC); R(CX + 1, tT + 5, tR - CX, 2, aC2); R(CX - 2, tT - 1, 4, 6, handC); R(CX, tT - 1, 1, 6, sh(handC, -.25)); } gtip = [CX, tT - 2]; }
+        else if (gest === 'sorcery') { normL(); up(x1, aC2); gtip = [x1 + (aw >> 1), tT - 10]; }
+        else if (gest === 'wave') { normL(); up(x1, aC2, frame % 2 ? 1 : -1); gtip = [x1 + (aw >> 1), tT - 10]; }
+        else if (gest === 'cry') { up(x0, armC); up(x1, aC2); gtip = [x1 + (aw >> 1), tT - 10]; }
+        else if (gest === 'point') { normL(); R(x1, tT + 3, aw + 6, 3, aC2); R(x1 + aw + 6, tT + 3, 2, 2, handC); gtip = [x1 + aw + 7, tT + 3]; }
+        else if (gest === 'bow' || gest === 'laugh') { normL(); const yy = gest === 'bow' ? tT + 4 : tT + 7; R(x1, tT + 2, aw, 3, aC2); if (!back) { R(CX, yy, tR - CX + aw, 3, aC2); R(CX - 2, yy - 1, 3, 4, handC); } else R(x1, tT + 5, aw, 4, aC2); }
+        else { normL(); normR(); }
+        hands = gtip ? [gtip] : [[x0, tT + al], [x1, tT + al]]; return true;
+      }
       const claws = (x, y) => { if (ft.claws || L.weapon === 'claws') { const cc = ft.claws ? '#f0e8f0' : '#cfe6ff'; for (let i = 0; i < 3; i++) R(x + i * Math.max(1, (aw - 1) >> 1), y + 3, 1, 4, cc); } };
       const flame = (x, y) => { if (ft.flames) { R(x - 1, y + 2, aw + 2, 3, '#3a7aff'); R(x, y, aw, 2, '#6ad8ff'); R(x + 1, y - 1, 1, 1, '#ffffff'); } };
       if (dir === 'left') {
@@ -367,6 +401,7 @@ const BUILTIN = {
     };
     const weapon = () => {
       const W = L.weapon; if (!W || W === 'none' || W === 'claws') return;
+      if (gest && gest !== 'kneel') return; // в жесте руки заняты
       const blade = ft.blade || '#cfe6ff', bladeE = isD ? '#ff3a2a' : '#8ad8ff';
       if (dir === 'left') {
         const wx = CX - 3, wy = tT + B.th - 1 - swing;
@@ -778,7 +813,7 @@ const BUILTIN = {
     if (dir === 'down') { banner(); cloakBack(); pack(); legs(); robe(); torso(); tabard(); seals(); pelt(); arms(); pads(); weapon(); head(); }
     else if (dir === 'up') { weapon(); legs(); robe(); torso(); arms(); pack(); cloakFront(); pads(); pelt(); head(); banner(); }
     else { banner(); cloakBack(); pack(); legs(); robe(); torso(); tabard(); seals(); pelt(); pads(); head(); arms(); weapon(); }
-    return { tip, hands, head: [hx, hy] };
+    return { tip: gtip || tip, hands, head: [hx, hy], gtip };
   }
 
   const OUT = '#16101e';
@@ -817,7 +852,7 @@ const BUILTIN = {
   }
 
   // ---------- эмоции ----------
-  const EMO_PAL = { k: '#1a1420', r: '#e8304a', w: '#ffffff', y: '#ffd84a', g: '#e8c25a', d: '#a8802a', b: '#3aa0ff', p: '#ff4ad0', z: '#bfe0ff', o: '#ff8a3a' };
+  const EMO_PAL = { k: '#1a1420', r: '#e8304a', w: '#ffffff', y: '#ffd84a', g: '#e8c25a', d: '#a8802a', b: '#3aa0ff', p: '#ff4ad0', z: '#bfe0ff', o: '#ff8a3a', G: '#3aff7a', l: '#d9ffb0', s: '#f0c8a0' };
   const EMO = {
     hi: { name: 'Привет', bmp: ['..k.k.k..', '.kykykyk.', '.kykykyk.', '.kyyyyykk', 'kkyyyyyyk', 'kyyyyyyk.', '.kyyyyk..', '..kkkk...'] },
     laugh: { name: 'Смех', bmp: ['..kkkkk..', '.kyyyyyk.', 'kykyyykyk', 'kyyyyyyyk', 'kykkkkkyk', 'kykrrrkyk', '.kyrrryk.', '..kkkkk..'] },
@@ -827,8 +862,20 @@ const BUILTIN = {
     emperor: { name: 'За Императора!', bmp: ['..kkkkk..', '.kgggggk.', 'kgggggggk', 'kgkkgkkgk', 'kgkkgkkgk', 'kggdkdggk', '.kgggggk.', '..kgkgk..', '..kkkkk..'] },
     eye: { name: 'Глаз Тзинча', bmp: ['...kkk...', '.kkbbbkk.', 'kbbwwwbbk', 'kbwpppwbk', 'kbbwwwbbk', '.kkbbbkk.', '...kkk...'] },
     salute: { name: 'Салют', bmp: ['....k....', '...kyk...', 'kkkyyykkk', 'kyyyyyyyk', '.kyyyyyk.', '..kyyyk..', '.kyykyyk.', '.kk...kk.'] },
+    // v4: позы и жесты (тело персонажа меняет позу, см. GEST)
+    aquila: { name: 'Салют аквилой', bmp: ['g.......g', 'gg..d..gg', 'ggg.g.ggg', '.ggggggg.', '..ggdgg..', '...ggg...', '..g.g.g..'] },
+    pray: { name: 'Молитва', bmp: ['...kkk...', '..kswsk..', '..kssskk.', '..kssssk.', '.ksssssk.', '.ksskssk.', '..kssk...', '...kk....'] },
+    sorcery: { name: 'Колдовской жест', bmp: ['....G....', '...GlG...', '...GlG..G', '..GllG.G.', '..GlllG..', '.GllwllG.', '.GllllG..', '..GGGGG..', '...sss...'] },
+    kneel: { name: 'Преклонить колено', bmp: ['...kk....', '...kk....', '..kkkk...', '.k.kk.k..', '...kk....', '...kkkk..', '...k..k..', '..kk..k..'] },
+    wave: { name: 'Помахать', bmp: ['k.k.k....', 'ksksk.k..', 'kskskskk.', 'ksssssk..', 'kssssk..z', '.ksssk.z.', '.kssk..z.', '..kk.....'] },
+    bow: { name: 'Поклон', bmp: ['.........', '.kk......', 'kkkkkkk..', '....kk...', '....kk...', '....kkk..', '....k.k..', '....k.k..'] },
+    cry: { name: 'Боевой клич', bmp: ['..rrrrr..', '.r.....r.', 'r.k...k.r', 'r..k.k..r', 'r.......r', 'r..kkk..r', 'r..krk..r', '.r.....r.', '..rrrrr..'] },
+    point: { name: 'Ересь! (указать)', bmp: ['....k....', '....kk...', 'kkkkkkk..', 'ksssssskk', 'kkkkkkk..', '....kk...', '....k....'] },
   };
-  const EMO_ORDER = ['hi', 'laugh', 'heart', 'angry', 'sleep', 'emperor', 'eye', 'salute'];
+  const EMO_ORDER = ['hi', 'laugh', 'heart', 'angry', 'sleep', 'emperor', 'eye', 'salute', 'aquila', 'pray', 'sorcery', 'kneel', 'wave', 'bow', 'cry', 'point'];
+  // эмоция -> поза тела и длительность (с). Первые 8 эмоций — как раньше (клавиши 1–8, touch.js).
+  const GEST = { aquila: 2.8, pray: 6, sorcery: 2.8, kneel: 8, wave: 2.4, bow: 2.2, cry: 2.4, point: 2.4, laugh: 2.2, salute: 2 };
+  const GEST_POSE = { salute: 'aquila' };
   const emoCache = {};
   function emoIcon(id) {
     if (emoCache[id]) return emoCache[id];
@@ -838,5 +885,5 @@ const BUILTIN = {
     return (emoCache[id] = c);
   }
 
-  return { FACE, FACE_DEF, ARCH, FACTIONS: FL, SIDES, resolveFaction, featOf, PAL, defaultLook, normLook, prepLook, sprite, skull, EMO, EMO_ORDER, emoIcon, sh, mix, hexRGB, OUT, SW, SH, migrateExt: EXT && typeof EXT.migrate === 'function' ? EXT.migrate.bind(EXT) : null, validExt: EXT && typeof EXT.valid === 'function' ? EXT.valid.bind(EXT) : null };
+  return { GEST, GEST_POSE, FACE, FACE_DEF, ARCH, FACTIONS: FL, SIDES, resolveFaction, featOf, PAL, defaultLook, normLook, prepLook, sprite, skull, EMO, EMO_ORDER, emoIcon, sh, mix, hexRGB, OUT, SW, SH, migrateExt: EXT && typeof EXT.migrate === 'function' ? EXT.migrate.bind(EXT) : null, validExt: EXT && typeof EXT.valid === 'function' ? EXT.valid.bind(EXT) : null };
 })();

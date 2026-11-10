@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" href="data:,">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Город Варпа — фан-песочница по Warhammer 40 000</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07060c">
+<title>Варповский очаг — фан-песочница по Warhammer 40 000</title>
 <style>
 :root{--ink:#efe6d4;--mut:#9a92a8;--gold:#d9b25a;--gold2:#f2d36b;--bl:#1d4fa8;--pan:rgba(14,10,26,.86);--line:#5a4a2a}
 *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#07060c;color:var(--ink);font:14px/1.35 "Trebuchet MS",system-ui,sans-serif}
@@ -31,6 +32,7 @@ input[type=text]:focus{border-color:var(--gold)}
 #mArch{color:var(--gold);font-size:12px}
 #mStatus{min-height:20px;margin-top:10px;color:#8ae8ff;font-size:13px}
 .foot{margin-top:12px;color:#6a6278;font-size:11px}
+.allg{display:inline-block;margin-top:10px;color:var(--gold);font-size:12px;text-decoration:none;border-bottom:1px dashed #d9b25a66}.allg:hover{color:var(--gold2)}
 /* редактор */
 #editor .card{width:min(1040px,100%);height:min(680px,100%);display:flex;overflow:hidden}
 #editor .left{width:340px;padding:16px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px;background:rgba(0,0,0,.2)}
@@ -104,7 +106,7 @@ input[type=color]{width:30px;height:24px;padding:0;border:1px solid var(--line);
 
 <div id="menu" class="screen">
   <div class="card">
-    <h1>ГОРОД ВАРПА</h1>
+    <h1>ВАРПОВСКИЙ ОЧАГ</h1>
     <div class="sub">уютный мир для встреч во вселенной Warhammer 40 000</div>
     <div class="who">
       <canvas id="mPrev" width="120" height="150"></canvas>
@@ -120,6 +122,7 @@ input[type=color]{width:30px;height:24px;padding:0;border:1px solid var(--line);
       <button id="mOff">Играть одному</button>
     </div>
     <div id="mStatus"></div>
+    <a class="allg" id="mAll" href="../play/">← Все игры</a>
     <div class="foot">Некоммерческий фан-проект. Warhammer 40 000 принадлежит Games Workshop.</div>
   </div>
 </div>
@@ -156,10 +159,14 @@ input[type=color]{width:30px;height:24px;padding:0;border:1px solid var(--line);
 </div>
 
 <script src="factions.js"></script>
+<script src="lore.js"></script>
 <script src="rtc-signal.js"></script>
 <script src="net.js"></script>
 <script src="art.js"></script>
 <script src="maps.js"></script>
+<script src="charcode.js"></script>
 <script src="game.js"></script>
+<script src="events.js"></script>
+<script src="touch.js"></script>
 </body>
 </html>

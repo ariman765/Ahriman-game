@@ -25,6 +25,25 @@
   var LS_PID = 'w40ktown_pid';
   var LS_ME = 'w40ktown_me';
   var LS_ROSTER = 'w40ktown_roster';
+  // world events + synced world state (host-authoritative)
+  var MAX_EVENTS = 16;
+  var EVENT_MIN_MS = 3000;
+  var EVENT_MAX_MS = 10 * 60 * 1000;
+  var MAX_EVENT_DATA = 512;
+  var MAX_WORLD_KEYS = 64;
+  var MAX_WORLD_KEY = 64;
+  var MAX_WORLD_VAL = 2048;
+  var TYPING_MS = 1000;    // client: at most ~1 typing refresh per second
+  var TYPING_TTL = 6000;   // host: typing expires without a refresh
+  // player cells (home rooms) + spell rate limit (batch 2)
+  var HOME_TPL = 'home';         // template map id in setWorld for every 'home:<ownerId>' room
+  var MAX_HOME = 2048;           // layout JSON (Home.getLayout()) limit
+  var LS_HOME = 'w40ktown_home_v1'; // game.js keeps the own layout here; picked up automatically
+  var HOME_ACCESS = { open: 1, invite: 1, 'private': 1 };
+  var MAX_GUESTS = 32;
+  var SPELL_CD_DEFAULT = 6;      // seconds, when LORE.SPELLS[id].cd is missing
+  var SPELL_CD_SLACK = 0.8;      // accept a recast after 80 % of cd (latency)
+  var SPELL_GAP = 400;           // ms between any two spells of one player
   var LIB_URLS = [
     'rtc-signal.js',
     'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
@@ -68,6 +87,33 @@
     if (typeof a === 'number' && isFinite(a)) return a;
     if (a == null || a === '') return '';
     return stripCtrl(a).trim().slice(0, 32);
+  }
+
+  function isHomeRoom(id) { return id === HOME_TPL || (typeof id === 'string' && id.slice(0, 5) === 'home:'); }
+  function homeOwnerOf(id) { return typeof id === 'string' && id.slice(0, 5) === 'home:' ? id.slice(5) : null; }
+  function mapTemplate(id) { return isHomeRoom(id) ? HOME_TPL : id; }
+
+  // Layout JSON -> normalized string, null (no layout) or undefined (invalid / too big).
+  // Uses window.Home.validate when game.js is loaded, otherwise only checks it is a JSON object.
+  function cleanHome(v) {
+    if (v == null || v === '') return null;
+    var str;
+    if (typeof v === 'string') str = v;
+    else { try { str = JSON.stringify(v); } catch (e) { return undefined; } }
+    if (typeof str !== 'string' || str.length > MAX_HOME) return undefined;
+    var obj;
+    try { obj = JSON.parse(str); } catch (e) { return undefined; }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return undefined;
+    var H = root.Home;
+    if (H && typeof H.validate === 'function') {
+      try {
+        var n = H.validate(str);
+        if (typeof n === 'string' && n.length <= MAX_HOME) return n;
+        if (n == null) return undefined;
+      } catch (e) { return undefined; }
+    }
+    try { str = JSON.stringify(obj); } catch (e) { return undefined; }
+    return str.length <= MAX_HOME ? str : undefined;
   }
 
   function finiteNum(v, fallback) {
@@ -198,6 +244,37 @@
     });
   }
 
+  function sanitizeKind(k) {
+    k = stripCtrl(k).trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 32);
+    return k || null;
+  }
+
+  // JSON-clone a small value; undefined if not serialisable or bigger than max chars.
+  function cloneSmall(v, max) {
+    if (v === undefined) return undefined;
+    var raw;
+    try { raw = JSON.stringify(v); } catch (e) { return undefined; }
+    if (raw == null || raw.length > max) return undefined;
+    try { return JSON.parse(raw); } catch (e) { return undefined; }
+  }
+
+  function publicEvent(e) {
+    return { id: e.id, map: e.map, kind: e.kind, startedAt: e.startedAt, endsAt: e.endsAt, seed: e.seed, data: e.data == null ? null : e.data };
+  }
+
+  // Validate an event coming from the host (client side) or from startEvent (host side).
+  function cleanEvent(e) {
+    if (!e || typeof e !== 'object') return null;
+    var id = stripCtrl(e.id).slice(0, 40);
+    var kind = sanitizeKind(e.kind);
+    var map = stripCtrl(e.map).trim().slice(0, MAX_MAP);
+    var st = Number(e.startedAt), en = Number(e.endsAt);
+    if (!id || !kind || !map || !isFinite(st) || !isFinite(en) || en <= st) return null;
+    var data = e.data == null ? null : cloneSmall(e.data, MAX_EVENT_DATA);
+    if (data === undefined) data = null;
+    return { id: id, map: map, kind: kind, startedAt: st, endsAt: en, seed: (Number(e.seed) >>> 0), data: data };
+  }
+
   function publicPlayer(p) {
     if (!p) return null;
     return {
@@ -210,7 +287,9 @@
       dir: p.dir,
       anim: p.anim,
       sit: !!p.sit,
-      emote: p.emote == null ? null : p.emote
+      emote: p.emote == null ? null : p.emote,
+      typing: !!p.typing,
+      home: p.home == null ? null : p.home
     };
   }
 
@@ -225,7 +304,11 @@
       dir: 0,
       anim: '',
       sit: false,
-      emote: null
+      emote: null,
+      typing: false,
+      home: null,
+      homeAccess: 'invite',
+      homeGuests: {}
     };
   }
 
@@ -250,6 +333,15 @@
     _world: null,       // {maps:{id:{spawn,pads}}} when the client called setWorld
     _maxSpeed: MAX_SPEED,
     _mapBeforeGo: null, // client: snapshot used to revert a denied goMap
+    _events: {},        // id -> world event {id,map,kind,startedAt,endsAt,seed,data} (host time)
+    _wstate: {},        // synced world state key -> JSON value (host-set)
+    _skew: 0,           // client: hostTime - Date.now()
+    _evSeq: 0,
+    _typingSent: false, // client: last typing value sent to the host
+    _typingT: 0,
+    _typingTimer: 0,    // host: expiry sweep
+    _myHome: undefined, // own layout set via setHome (kept across sessions of this page)
+    _homes: {},         // client: ownerId -> {owner, name, home} received with homeInfo
 
     on: function (evt, cb) {
       if (typeof cb !== 'function') return function () {};
@@ -273,7 +365,13 @@
       this._emit('error', { code: code, message: message });
     },
 
-    me: function () { return this._me ? publicPlayer(this._me) : null; },
+    // Own cell is 'home:<my id>' inside the network, but me()/myMap() report it as 'home' (as before batch 2).
+    me: function () {
+      if (!this._me) return null;
+      var p = publicPlayer(this._me);
+      if (p.map === 'home:' + p.id) p.map = HOME_TPL;
+      return p;
+    },
     players: function () {
       var map = this._me && this._me.map;
       var out = [];
@@ -374,6 +472,8 @@
         this._hostChat(this._me, text);
         return true;
       }
+      this._typingSent = false;
+      this._me.typing = false;
       this._sendToHost({ t: 'chat', text: text });
       this._emit('chat', { id: this._me.id, name: this._me.name, text: text, t: t });
       return true;
@@ -441,6 +541,8 @@
     goMap: function (mapId) {
       if (!this._me || !this._started) return;
       mapId = sanitizeMap(mapId);
+      if (mapId === HOME_TPL && this._me.id) mapId = 'home:' + this._me.id;
+      if (homeOwnerOf(mapId) === this._me.id) this._autoHome();
       if (this._mode === 'host' || this._mode === 'offline') {
         this._hostGoMap(this._me, mapId);
         return;
@@ -451,6 +553,277 @@
       this._others = {};
       this._emit('players', { full: true, list: [] });
       this._sendToHost({ t: 'map', mapId: mapId });
+    },
+
+    // ---------- player cells (home rooms) ----------
+    // Room id 'home:<playerId>' (template 'home' in setWorld); goMap('home') = own cell.
+    homeRoom: function (id) {
+      id = id == null ? (this._me && this._me.id) : stripCtrl(id).slice(0, 60);
+      return id ? 'home:' + id : HOME_TPL;
+    },
+    // Owner id when I am in someone's cell (or mine), else null.
+    homeOwner: function () { return this._me ? homeOwnerOf(this._me.map) : null; },
+    // Own layout (string or object, ≤ 2 KB JSON). null clears. Sent to the host, visible as p.home.
+    setHome: function (json) {
+      var v = cleanHome(json);
+      if (v === undefined) {
+        this._error('home-too-big', 'Расстановка кельи слишком большая или повреждена (лимит 2 КБ).');
+        return false;
+      }
+      this._myHome = v;
+      if (!this._me) return true;
+      if (!this._started) { this._me.home = v; return true; }
+      if (this._mode === 'host' || this._mode === 'offline') { this._hostSetHome(this._me, v); return true; }
+      if (this._me.home === v) return true;
+      this._me.home = v;
+      this._sendToHost({ t: 'home', home: v });
+      return true;
+    },
+    // Own layout as last sent, or null.
+    home: function () { return this._me && this._me.home != null ? this._me.home : null; },
+    // Layout of a player's cell: from players on my map, from the last homeInfo, or my own.
+    homeOf: function (id) {
+      if (!id) return null;
+      if (this._me && id === this._me.id) return this.home();
+      var src = this._mode === 'host' ? this._peers : this._others;
+      if (src[id] && src[id].home != null) return src[id].home;
+      var c = this._homes[id];
+      return c && c.home != null ? c.home : null;
+    },
+    // Who may enter my cell: 'invite' (default: me + invited), 'open' (everyone), 'private' (only me).
+    setHomeAccess: function (mode) {
+      if (!HOME_ACCESS[mode] || !this._me || !this._started) return false;
+      if (this.isHost()) { this._hostHomeAccess(this._me, { mode: mode }); return true; }
+      this._me.homeAccess = mode;
+      this._sendToHost({ t: 'homeAccess', mode: mode });
+      return true;
+    },
+    homeAccess: function () { return this._me ? this._me.homeAccess || 'invite' : 'invite'; },
+    homeInvite: function (id) { return this._homeGuest(id, true); },
+    homeUninvite: function (id) { return this._homeGuest(id, false); },
+    _homeGuest: function (id, on) {
+      if (!this._me || !this._started || typeof id !== 'string' || !id || id === this._me.id) return false;
+      id = stripCtrl(id).slice(0, 60);
+      if (this.isHost()) { this._hostHomeAccess(this._me, on ? { invite: id } : { uninvite: id }); return true; }
+      if (on) this._me.homeGuests[id] = true; else delete this._me.homeGuests[id];
+      this._sendToHost(on ? { t: 'homeAccess', invite: id } : { t: 'homeAccess', uninvite: id });
+      return true;
+    },
+    // Picks up game.js's saved layout (localStorage) until setHome() is called explicitly.
+    _autoHome: function () {
+      if (this._myHome !== undefined || !this._me) return;
+      var raw = null;
+      try { raw = root.localStorage ? localStorage.getItem(LS_HOME) : null; } catch (e) {}
+      if (raw == null) return;
+      var v = cleanHome(raw);
+      if (v === undefined || v === this._me.home) return;
+      if (!this._started) { this._me.home = v; return; }
+      if (this.isHost()) this._hostSetHome(this._me, v);
+      else { this._me.home = v; this._sendToHost({ t: 'home', home: v }); }
+    },
+    _playerById: function (id) {
+      if (this._me && this._me.id === id) return this._me;
+      return this._peers[id] || null;
+    },
+    _homeAllowed: function (owner, p) {
+      if (owner === p) return true;
+      var mode = owner.homeAccess || 'invite';
+      if (mode === 'open') return true;
+      if (mode === 'private') return false;
+      return !!(owner.homeGuests && owner.homeGuests[p.id]);
+    },
+    _sendHomeInfo: function (to, owner) {
+      var info = { owner: owner.id, name: owner.name, home: owner.home == null ? null : owner.home };
+      if (to === this._me) this._emit('home', info);
+      else this._safeSend(to.conn, { t: 'homeInfo', owner: info.owner, name: info.name, home: info.home });
+    },
+    _hostSetHome: function (p, v) {
+      if (p.home === v) return;
+      p.home = v;
+      this._pushPlayersDelta(p.map, [{ id: p.id, home: v }]);
+      var room = 'home:' + p.id;
+      if (this._me && this._me !== p && this._me.map === room) this._sendHomeInfo(this._me, p);
+      for (var id in this._peers) {
+        var q = this._peers[id];
+        if (q !== p && q.map === room) this._sendHomeInfo(q, p);
+      }
+    },
+    _hostHomeAccess: function (p, m) {
+      if (m.mode && HOME_ACCESS[m.mode]) p.homeAccess = m.mode;
+      if (!p.homeGuests) p.homeGuests = {};
+      var inv = typeof m.invite === 'string' ? stripCtrl(m.invite).slice(0, 60) : '';
+      if (inv && inv !== p.id && this._playerById(inv) && Object.keys(p.homeGuests).length < MAX_GUESTS) {
+        p.homeGuests[inv] = true;
+        var g = this._playerById(inv);
+        var note = { owner: p.id, name: p.name, room: 'home:' + p.id };
+        if (g === this._me) this._emit('homeinvite', note);
+        else this._safeSend(g.conn, { t: 'homeInvite', owner: note.owner, name: note.name, room: note.room });
+      }
+      var un = typeof m.uninvite === 'string' ? stripCtrl(m.uninvite).slice(0, 60) : '';
+      if (un) delete p.homeGuests[un];
+      if (p !== this._me) this._safeSend(p.conn, { t: 'homeAccessAck', mode: p.homeAccess, guests: Object.keys(p.homeGuests) });
+      this._evictHomeGuests(p, false);
+    },
+    // Sends visitors who may no longer stay (or everyone, when the owner left) back to the hub.
+    _evictHomeGuests: function (owner, all) {
+      var room = 'home:' + owner.id;
+      var list = [];
+      if (this._me && this._me !== owner && this._me.map === room) list.push(this._me);
+      for (var id in this._peers) if (this._peers[id] !== owner && this._peers[id].map === room) list.push(this._peers[id]);
+      for (var i = 0; i < list.length; i++) {
+        var q = list[i];
+        if (!all && this._homeAllowed(owner, q)) continue;
+        var msg = all ? 'Хозяин кельи покинул игру, ты вернулся в Руины Просперо.' : 'Хозяин закрыл келью, ты вернулся в Руины Просперо.';
+        if (q === this._me) this._error('home-closed', msg);
+        else this._safeSend(q.conn, { t: 'error', code: 'home-closed', message: msg });
+        this._confirmGoMap(q, DEFAULT_MAP, true);
+      }
+    },
+
+    // ---------- typing indicator ----------
+    // Net.typing(true) while the chat input has text/focus, Net.typing(false) on send/blur/close.
+    // Client: refreshes at most ~1/s; host expires it after ~6 s without a refresh and clears it on chat.
+    typing: function (bool) {
+      if (!this._me || !this._started) return false;
+      var v = !!bool;
+      if (this._mode === 'host' || this._mode === 'offline') { this._hostTyping(this._me, v); return true; }
+      var t = now();
+      if (v === this._typingSent && (!v || t - this._typingT < TYPING_MS)) return false;
+      this._typingSent = v;
+      this._typingT = t;
+      this._me.typing = v;
+      this._sendToHost({ t: 'typing', v: v });
+      return true;
+    },
+
+    _hostTyping: function (p, v) {
+      v = !!v;
+      var t = now();
+      if (v) p.typingT = t;
+      if (!!p.typing === v) return;
+      p.typing = v;
+      this._pushPlayersDelta(p.map, [{ id: p.id, typing: v }]);
+      if (this._me && this._me.map === p.map && p !== this._me) this._emit('typing', { id: p.id, typing: v });
+      if (v) this._startTypingSweep();
+    },
+
+    _startTypingSweep: function () {
+      if (this._typingTimer) return;
+      var self = this;
+      this._typingTimer = setInterval(function () {
+        if (!self.isHost() || !self._started) { clearInterval(self._typingTimer); self._typingTimer = 0; return; }
+        var t = now(), any = false;
+        var all = [self._me];
+        for (var id in self._peers) all.push(self._peers[id]);
+        for (var i = 0; i < all.length; i++) {
+          var p = all[i];
+          if (!p || !p.typing) continue;
+          if (t - (p.typingT || 0) > TYPING_TTL) self._hostTyping(p, false);
+          else any = true;
+        }
+        if (!any) { clearInterval(self._typingTimer); self._typingTimer = 0; }
+      }, 1000);
+    },
+
+    // ---------- current map / host clock ----------
+    myMap: function () {
+      if (!this._me) return null;
+      return this._me.map === 'home:' + this._me.id ? HOME_TPL : this._me.map;
+    },
+    // Network room id of my map ('home:<id>' in a cell), for code that needs the exact room.
+    myRoom: function () { return this._me ? this._me.map : null; },
+    hostTime: function () { return now() + (this._mode === 'client' ? this._skew : 0); },
+
+    // Host: {mapId: playerCount} for every map with someone on it (host included). Client: only own map.
+    occupiedMaps: function () {
+      var out = {};
+      if (!this._me || !this._started) return out;
+      out[this._me.map] = 1;
+      if (this._mode === 'host') {
+        for (var id in this._peers) {
+          var m = this._peers[id].map;
+          out[m] = (out[m] || 0) + 1;
+        }
+      }
+      return out;
+    },
+
+    // ---------- world events (host-authoritative) ----------
+    // Host only. spec: {map, kind, duration (ms) | endsAt (host ms), seed?, data? (≤512 B JSON)}.
+    // Returns the public event or null (client, bad spec, too many events).
+    startEvent: function (spec) {
+      if (!this.isHost() || !this._started || !spec || typeof spec !== 'object') return null;
+      this._pruneEvents();
+      if (Object.keys(this._events).length >= MAX_EVENTS) return null;
+      var t = now();
+      var dur = spec.endsAt != null ? Number(spec.endsAt) - t : Number(spec.duration);
+      if (!isFinite(dur)) return null;
+      dur = Math.max(EVENT_MIN_MS, Math.min(EVENT_MAX_MS, dur));
+      var ev = cleanEvent({
+        id: 'ev' + (++this._evSeq) + '-' + Math.random().toString(36).slice(2, 7),
+        map: spec.map, kind: spec.kind, startedAt: t, endsAt: t + dur,
+        seed: spec.seed != null ? spec.seed : (Math.random() * 4294967296) >>> 0,
+        data: spec.data
+      });
+      if (!ev) return null;
+      this._events[ev.id] = ev;
+      var pub = publicEvent(ev);
+      this._broadcast({ t: 'event', ev: pub, now: t });
+      this._emit('event', pub);
+      return publicEvent(ev);
+    },
+    // Host only: end an event early. Everyone gets 'eventend' {id, map, kind}.
+    stopEvent: function (id) {
+      if (!this.isHost() || !this._started) return false;
+      var ev = this._events[id];
+      if (!ev) return false;
+      delete this._events[id];
+      this._broadcast({ t: 'eventEnd', id: id });
+      this._emit('eventend', { id: id, map: ev.map, kind: ev.kind });
+      return true;
+    },
+    // Active events (endsAt > host time), optionally only for one map. Copies.
+    events: function (mapId) {
+      this._pruneEvents();
+      var out = [];
+      for (var id in this._events) {
+        var e = this._events[id];
+        if (mapId == null || e.map === mapId) out.push(publicEvent(e));
+      }
+      out.sort(function (a, b) { return a.startedAt - b.startedAt; });
+      return out;
+    },
+    _pruneEvents: function () {
+      var t = this.hostTime();
+      for (var id in this._events) if (this._events[id].endsAt <= t) delete this._events[id];
+    },
+
+    // ---------- synced world state (host-set key/values) ----------
+    // Host only. key: ≤64 chars; value: any JSON ≤2 KB; null/undefined deletes. Up to 64 keys.
+    setWorldState: function (key, value) {
+      if (!this.isHost() || !this._started) return false;
+      key = stripCtrl(key).trim().slice(0, MAX_WORLD_KEY);
+      if (!key) return false;
+      if (value === undefined || value === null) {
+        if (!Object.prototype.hasOwnProperty.call(this._wstate, key)) return true;
+        delete this._wstate[key];
+        value = null;
+      } else {
+        var v = cloneSmall(value, MAX_WORLD_VAL);
+        if (v === undefined) return false;
+        if (!Object.prototype.hasOwnProperty.call(this._wstate, key) && Object.keys(this._wstate).length >= MAX_WORLD_KEYS) return false;
+        this._wstate[key] = v;
+        value = v;
+      }
+      this._broadcast({ t: 'world', key: key, value: value });
+      this._emit('worldstate', { key: key, value: cloneSmall(value, MAX_WORLD_VAL + 8), full: false });
+      return true;
+    },
+    // worldState() -> copy of all keys; worldState(key) -> value or undefined.
+    worldState: function (key) {
+      if (key == null) return cloneSmall(this._wstate, 1e7) || {};
+      if (!Object.prototype.hasOwnProperty.call(this._wstate, key)) return undefined;
+      return cloneSmall(this._wstate[key], MAX_WORLD_VAL + 8);
     },
 
     // ---------- setup ----------
@@ -466,12 +839,18 @@
       look = normalizeLook(look);
       if (look === undefined) look = null;
       this._me = blankMe('', nm, look);
+      if (this._myHome !== undefined) this._me.home = this._myHome;
+      this._homes = {};
+      this._autoHome();
       this._me.persistId = this._persistId;
       this._others = {};
       this._peers = {};
       this._pendingMove = null;
       this._started = false;
       this.code = '';
+      this._events = {};
+      this._wstate = {};
+      this._skew = 0;
       saveMeStore({ name: nm, look: look });
       if (mode === 'offline') return Promise.resolve();
       return loadLib().catch(function () {
@@ -583,7 +962,8 @@
               t: 'hello',
               name: self._me.name,
               persistId: self._persistId,
-              look: self._me.look
+              look: self._me.look,
+              home: self._me.home == null ? null : self._me.home
             });
           });
           c.on('data', function (m) { self._onClientData(m); });
@@ -652,6 +1032,8 @@
         if (look === undefined) look = null;
         p = blankMe(id, name, look);
         p.persistId = pid;
+        var hm = cleanHome(m.home);
+        p.home = hm === undefined ? null : hm;
         p.conn = c;
         p.lastMoveT = 0;
         p.lastChatT = 0;
@@ -661,7 +1043,10 @@
           t: 'welcome',
           code: this.code,
           you: publicPlayer(p),
-          players: this._playersOnMap(p.map, id)
+          players: this._playersOnMap(p.map, id),
+          now: now(),
+          events: this.events(),
+          world: this.worldState()
         });
         this._emit('joined', { id: id, name: name });
         this._broadcast({ t: 'joined', id: id, name: name }, { except: id });
@@ -689,6 +1074,17 @@
         case 'map':
           this._hostGoMap(p, m.mapId);
           break;
+        case 'typing':
+          this._hostTyping(p, m.v);
+          break;
+        case 'home':
+          var hv = cleanHome(m.home);
+          if (hv === undefined) this._safeSend(p.conn, { t: 'error', code: 'home-too-big', message: 'Расстановка кельи слишком большая или повреждена (лимит 2 КБ).' });
+          else this._hostSetHome(p, hv);
+          break;
+        case 'homeAccess':
+          this._hostHomeAccess(p, m);
+          break;
       }
     },
 
@@ -698,6 +1094,9 @@
       var map = p.map;
       var name = p.name;
       delete this._peers[id];
+      this._evictHomeGuests(p, true);
+      if (this._me && this._me.homeGuests) delete this._me.homeGuests[id];
+      for (var oid in this._peers) if (this._peers[oid].homeGuests) delete this._peers[oid].homeGuests[id];
       this._emit('left', { id: id, name: name });
       this._broadcast({ t: 'left', id: id, name: name });
       this._pushPlayers(map);
@@ -739,13 +1138,57 @@
       text = sanitizeChat(text);
       if (!text) return;
       if (p !== this._me && !this._canChat(p)) return;
+      if (p.typing) this._hostTyping(p, false);
       var payload = { id: p.id, name: p.name, text: text, t: now() };
       if (this._me && this._me.map === p.map) this._emit('chat', payload);
       this._broadcast({ t: 'chat', id: p.id, name: p.name, text: text, ts: payload.t }, { map: p.map, except: p.id });
     },
 
+    // Spells travel as emotes 'spell:<id>'. With window.LORE loaded the host drops unknown spells and
+    // spells the caster's look may not cast (LORE.parseEmo / LORE.canCast(spellId, look)).
+    _spellAllowed: function (p, id) {
+      if (typeof id !== 'string' || id.slice(0, 6) !== 'spell:') return true;
+      var L = root.LORE;
+      if (!L || typeof L.parseEmo !== 'function') return true;
+      try {
+        var sp = L.parseEmo(id);
+        if (!sp) return false;
+        if (typeof L.canCast === 'function' && !L.canCast(sp, p.look || null)) return false;
+        return true;
+      } catch (e) { return false; }
+    },
+
+    // Host-side spell rate limit: per spell LORE.SPELLS[id].cd seconds (default 6, 80 % accepted for
+    // latency) and at least SPELL_GAP ms between any two spells of one player. Returns true if allowed.
+    _spellRate: function (p, id) {
+      if (typeof id !== 'string' || id.slice(0, 6) !== 'spell:') return true;
+      var sp = id.slice(6);
+      var L = root.LORE, cd = 0;
+      try { cd = L && L.SPELLS && L.SPELLS[sp] ? +L.SPELLS[sp].cd : 0; } catch (e) { cd = 0; }
+      if (!(cd > 0) || !isFinite(cd)) cd = SPELL_CD_DEFAULT;
+      var t = now();
+      if (!p.spellT) p.spellT = {};
+      if (t - (p.spellAny || 0) < SPELL_GAP) return false;
+      if (t - (p.spellT[sp] || 0) < cd * 1000 * SPELL_CD_SLACK) return false;
+      p.spellT[sp] = t;
+      p.spellAny = t;
+      return true;
+    },
+
     _hostEmote: function (p, id) {
       id = sanitizeEmote(id);
+      if (!this._spellAllowed(p, id)) {
+        var msg = 'Это заклинание недоступно твоей фракции.';
+        if (p === this._me) this._error('spell-denied', msg);
+        else this._safeSend(p.conn, { t: 'error', code: 'spell-denied', message: msg });
+        return;
+      }
+      if (!this._spellRate(p, id)) {
+        var cmsg = 'Чары ещё не перезарядились.';
+        if (p === this._me) this._error('spell-cooldown', cmsg);
+        else this._safeSend(p.conn, { t: 'error', code: 'spell-cooldown', message: cmsg });
+        return;
+      }
       p.emote = id;
       var payload = { id: p.id, emote: id };
       if (this._me && this._me.map === p.map) this._emit('emote', payload);
@@ -781,7 +1224,7 @@
     _nearPad: function (p) {
       var maps = this._worldMaps();
       if (!maps || !p) return true;
-      var cur = maps[p.map];
+      var cur = maps[mapTemplate(p.map)];
       if (!cur || !cur.pads || !cur.pads.length) return false;
       for (var i = 0; i < cur.pads.length; i++) {
         var pad = cur.pads[i];
@@ -794,7 +1237,7 @@
 
     _spawnOf: function (mapId) {
       var maps = this._worldMaps();
-      var m = maps && maps[mapId];
+      var m = maps && maps[mapTemplate(mapId)];
       if (!m) return { x: 0, y: 0 };
       if (m.spawn && isFinite(+m.spawn.x) && isFinite(+m.spawn.y)) return { x: +m.spawn.x, y: +m.spawn.y };
       if (m.pads && m.pads[0] && isFinite(+m.pads[0].x) && isFinite(+m.pads[0].y)) return { x: +m.pads[0].x, y: +m.pads[0].y };
@@ -819,6 +1262,9 @@
     _confirmGoMap: function (p, mapId, place) {
       var old = p.map;
       p.map = mapId;
+      var hOwner = homeOwnerOf(mapId);
+      var ho = hOwner ? this._playerById(hOwner) : null;
+      if (ho) this._sendHomeInfo(p, ho);
       if (place) {
         var pos = this._spawnOf(mapId);
         p.x = pos.x;
@@ -845,10 +1291,17 @@
 
     _hostGoMap: function (p, mapId) {
       mapId = sanitizeMap(mapId);
+      if (mapId === HOME_TPL) mapId = 'home:' + p.id;
       if (p.map === mapId) return;
+      var hOwner = homeOwnerOf(mapId);
+      if (hOwner != null) {
+        var owner = this._playerById(hOwner);
+        if (!owner) { this._sendTeleportDenied(p, 'Келья недоступна: её хозяина нет в игре.'); return; }
+        if (!this._homeAllowed(owner, p)) { this._sendTeleportDenied(p, 'Келья закрыта: хозяин тебя не пригласил.'); return; }
+      }
       var maps = this._worldMaps();
       if (maps) {
-        if (!maps[mapId]) {
+        if (!maps[mapTemplate(mapId)]) {
           this._sendTeleportDenied(p, 'Телепорт недоступен: такой локации нет.');
           return;
         }
@@ -989,11 +1442,75 @@
         case 'bye':
           this._gotBye(m);
           break;
+        case 'event':
+          this._gotEvent(m);
+          break;
+        case 'eventEnd':
+          this._gotEventEnd(m);
+          break;
+        case 'world':
+          this._gotWorld(m);
+          break;
+        case 'homeInfo':
+          this._gotHomeInfo(m);
+          break;
+        case 'homeInvite':
+          this._emit('homeinvite', { owner: stripCtrl(m.owner).slice(0, 60), name: sanitizeName(m.name), room: 'home:' + stripCtrl(m.owner).slice(0, 60) });
+          break;
+        case 'homeAccessAck':
+          if (this._me) {
+            if (HOME_ACCESS[m.mode]) this._me.homeAccess = m.mode;
+            var gs = {};
+            (Array.isArray(m.guests) ? m.guests.slice(0, MAX_GUESTS) : []).forEach(function (g) { if (typeof g === 'string') gs[g] = true; });
+            this._me.homeGuests = gs;
+          }
+          break;
         case 'error':
           if (m.code === 'teleport-denied') this._revertGoMap(m);
           this._error(m.code || 'network', m.message || 'Ошибка сети');
           break;
       }
+    },
+
+    _gotHomeInfo: function (m) {
+      var owner = stripCtrl(m.owner).slice(0, 60);
+      if (!owner) return;
+      var hv = cleanHome(m.home);
+      if (hv === undefined) hv = null;
+      var info = { owner: owner, name: sanitizeName(m.name), home: hv };
+      this._homes[owner] = info;
+      this._emit('home', { owner: info.owner, name: info.name, home: info.home });
+    },
+
+    _setSkew: function (hostNow) {
+      var hn = Number(hostNow);
+      if (isFinite(hn)) this._skew = hn - now();
+    },
+
+    _gotEvent: function (m) {
+      if (m.now != null) this._setSkew(m.now);
+      var ev = cleanEvent(m.ev);
+      if (!ev) return;
+      this._events[ev.id] = ev;
+      this._emit('event', publicEvent(ev));
+    },
+
+    _gotEventEnd: function (m) {
+      var id = stripCtrl(m.id).slice(0, 40);
+      var ev = this._events[id];
+      if (!ev) return;
+      delete this._events[id];
+      this._emit('eventend', { id: id, map: ev.map, kind: ev.kind });
+    },
+
+    _gotWorld: function (m) {
+      var key = stripCtrl(m.key).trim().slice(0, MAX_WORLD_KEY);
+      if (!key) return;
+      var v = m.value == null ? null : cloneSmall(m.value, MAX_WORLD_VAL + 8);
+      if (v === undefined) return;
+      if (v === null) delete this._wstate[key];
+      else this._wstate[key] = v;
+      this._emit('worldstate', { key: key, value: v, full: false });
     },
 
     _revertGoMap: function (m) {
@@ -1046,11 +1563,30 @@
         if (!list[i] || list[i].id === this._me.id) continue;
         this._others[list[i].id] = publicPlayer(list[i]);
       }
+      if (m.now != null) this._setSkew(m.now);
+      this._events = {};
+      var evs = Array.isArray(m.events) ? m.events.slice(0, MAX_EVENTS) : [];
+      for (var k = 0; k < evs.length; k++) {
+        var ev = cleanEvent(evs[k]);
+        if (ev) this._events[ev.id] = ev;
+      }
+      this._wstate = {};
+      if (m.world && typeof m.world === 'object') {
+        var keys = Object.keys(m.world).slice(0, MAX_WORLD_KEYS);
+        for (var w = 0; w < keys.length; w++) {
+          var wk = stripCtrl(keys[w]).trim().slice(0, MAX_WORLD_KEY);
+          var wv = cloneSmall(m.world[keys[w]], MAX_WORLD_VAL + 8);
+          if (wk && wv !== undefined && wv !== null) this._wstate[wk] = wv;
+        }
+      }
       var wait = this._joinWait;
       this._joinWait = null;
       if (wait && wait.settle) wait.settle();
       this._emit('connected', { code: this.code, id: this._me.id });
       this._emit('players', { full: true, list: this.players() });
+      this._emit('worldstate', { key: null, value: null, full: true, state: this.worldState() });
+      var active = this.events();
+      for (var a = 0; a < active.length; a++) { active[a].late = true; this._emit('event', active[a]); }
       if (wait && wait.resolve) wait.resolve();
     },
 
@@ -1088,6 +1624,11 @@
           if (d.anim !== undefined) cur.anim = d.anim;
           if (d.sit != null) cur.sit = !!d.sit;
           if (d.emote !== undefined) cur.emote = d.emote;
+          if (d.home !== undefined) cur.home = d.home;
+          if (d.typing != null && !!d.typing !== !!cur.typing) {
+            cur.typing = !!d.typing;
+            this._emit('typing', { id: d.id, typing: cur.typing });
+          }
         }
       }
       this._emit('players', { full: !!m.full, list: m.full ? this.players() : list.filter(function (q) {
@@ -1151,10 +1692,20 @@
       this._others = {};
       this.code = '';
       this._joinWait = null;
+      this._events = {};
+      this._wstate = {};
+      this._skew = 0;
+      this._typingSent = false;
+      this._homes = {};
+      if (this._typingTimer) { clearInterval(this._typingTimer); this._typingTimer = 0; }
       var self = this;
       setTimeout(function () { self._leaving = false; }, 50);
     }
   };
+
+  try {
+    if (root.addEventListener) root.addEventListener('blur', function () { if (Net._me && Net._me.typing) Net.typing(false); });
+  } catch (e) {}
 
   root.Net = Net;
 })(typeof window !== 'undefined' ? window : this);

@@ -35,7 +35,7 @@ window.MAPS = (() => {
     for (const [x, y] of [[5, 5], [34, 5], [5, 25], [34, 25], [10, 16], [30, 10]]) A.set(x, y, 'x');
     for (const [x, y] of [[7, 4], [9, 10], [31, 24], [29, 17], [4, 18], [35, 8], [11, 24], [27, 3]]) A.set(x, y, 'r');
     A.tele(19, 23, 3, 2, 20.5, 21.9);
-    m.spawn = { x: 20.5, y: 18.5 };
+    m.spawn = { x: 20.5, y: 21.9 };
     m.npcs = [
       { name: 'Сервитор-смотритель', arch: 'mech', tweak: { weapon: 'none', acc: ['skull'] }, x: 12, y: 13, ai: 'wander', lines: ['Бип. Пыль удалена.', 'Слава Омниссии.', 'Обнаружен варп-фон. Уровень: приемлемый.'] },
       { name: 'Рубрикант Хетеп', arch: 'ts', tweak: { cloak: 'none', weapon: 'bolter', acc: ['pack'] }, x: 23, y: 9, ai: 'idle', dir: 'down', lines: ['…', 'Прах… помнит…'] },

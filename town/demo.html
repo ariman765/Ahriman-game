@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>w40k-town net demo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0c0e14; --panel:#161a24; --ink:#e8e0d0; --muted:#8a8070; --gold:#c4a35a; --accent:#3a6aa8; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 sans-serif; }
+  #wrap { display: flex; flex-direction: column; height: 100%; max-width: 960px; margin: 0 auto; padding: 10px; gap: 8px; }
+  h1 { margin: 0; font-size: 16px; color: var(--gold); font-weight: 600; }
+  #ui { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  input, button, select { font: inherit; padding: 5px 8px; border: 1px solid #333; background: #0a0c12; color: var(--ink); border-radius: 3px; }
+  button { background: #243044; cursor: pointer; }
+  button:hover { background: #2e3c55; }
+  #status { color: var(--muted); min-height: 1.4em; flex: 1 1 200px; }
+  #game { display: flex; gap: 8px; flex: 1; min-height: 0; }
+  canvas { background: #141820; border: 1px solid #333; image-rendering: pixelated; }
+  #side { width: 260px; display: flex; flex-direction: column; gap: 8px; }
+  #plist, #log { background: var(--panel); border: 1px solid #333; padding: 6px; overflow: auto; white-space: pre-wrap; }
+  #plist { height: 120px; }
+  #log { flex: 1; min-height: 80px; font-size: 12px; }
+  #chatRow { display: flex; gap: 4px; }
+  #chatRow input { flex: 1; }
+  .hint { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>Демо сети · Pony Town / Warhammer 40K (квадраты)</h1>
+  <div id="ui">
+    <input id="name" placeholder="Имя" maxlength="24">
+    <button id="bHost">Создать комнату</button>
+    <input id="code" placeholder="Код" maxlength="5" style="width:6em;text-transform:uppercase">
+    <button id="bJoin">Войти</button>
+    <button id="bOff">Один (офлайн)</button>
+    <button id="bLeave">Выйти</button>
+    <span id="status">Готово</span>
+  </div>
+  <div id="ui2" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+    <label>Карта
+      <select id="map">
+        <option value="hub">hub</option>
+        <option value="cantina">cantina</option>
+        <option value="prospero">prospero</option>
+      </select>
+    </label>
+    <label>Цвет <input id="color" type="color" value="#c4a35a"></label>
+    <button id="bLook">Сменить образ</button>
+    <button id="bEmote">Эмоция</button>
+    <button id="bSit">Сесть / встать</button>
+    <input id="link" readonly placeholder="Ссылка-приглашение" style="flex:1;min-width:160px">
+  </div>
+  <div id="game">
+    <canvas id="cv" width="640" height="360"></canvas>
+    <div id="side">
+      <div class="hint">WASD — движение. Игроки на вашей карте:</div>
+      <div id="plist"></div>
+      <div id="log"></div>
+      <div id="chatRow">
+        <input id="chat" maxlength="200" placeholder="Чат…">
+        <button id="bChat">Сказать</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="rtc-signal.js"></script>
+<script src="net.js"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const keys = {};
+  let sitting = false, last = performance.now();
+  const mePos = {x: 80, y: 80, dir: 0, anim: ''};
+
+  function log(t){ const el=$('log'); el.textContent += t + '\n'; el.scrollTop = el.scrollHeight; }
+  function status(t){ $('status').textContent = t; }
+  function colorFor(p){
+    if (p && p.look && p.look.color) return p.look.color;
+    let h=0, s=String(p&&p.id||'?');
+    for (let i=0;i<s.length;i++) h=s.charCodeAt(i)+((h<<5)-h);
+    return 'hsl('+(h%360)+',55%,58%)';
+  }
+  function paint(){
+    ctx.fillStyle = Net.me() && Net.me().map==='cantina' ? '#1a120c' : Net.me() && Net.me().map==='prospero' ? '#102018' : '#141820';
+    ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.strokeStyle = '#2a3140';
+    for (let x=0;x<cv.width;x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,cv.height); ctx.stroke(); }
+    for (let y=0;y<cv.height;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cv.width,y); ctx.stroke(); }
+    const all = [];
+    if (Net.me()) all.push(Net.me());
+    Net.players().forEach(p => all.push(p));
+    all.forEach(p => {
+      const s = p.sit ? 16 : 22;
+      ctx.fillStyle = colorFor(p);
+      ctx.fillRect(p.x - s/2, p.y - s/2, s, s);
+      ctx.strokeStyle = '#fff8'; ctx.strokeRect(p.x - s/2, p.y - s/2, s, s);
+      ctx.fillStyle = '#eee'; ctx.font = '11px sans-serif'; ctx.textAlign='center';
+      ctx.fillText((p.name||'?')+(p.emote?' '+p.emote:'')+(p===Net.me()?' (вы)':''), p.x, p.y - s/2 - 4);
+    });
+    const lines = all.map(p => (p.name||'?')+'  '+Math.round(p.x)+','+Math.round(p.y)+'  '+p.map+(p.sit?'  сидит':''));
+    $('plist').textContent = lines.join('\n') || '—';
+  }
+  function tick(t){
+    const dt = Math.min(0.05, (t-last)/1000); last = t;
+    if (Net.me() && !sitting) {
+      let dx=0, dy=0;
+      if (keys.KeyW || keys.ArrowUp) dy -= 1;
+      if (keys.KeyS || keys.ArrowDown) dy += 1;
+      if (keys.KeyA || keys.ArrowLeft) dx -= 1;
+      if (keys.KeyD || keys.ArrowRight) dx += 1;
+      if (dx||dy){
+        const len = Math.hypot(dx,dy) || 1;
+        mePos.x = Math.max(12, Math.min(cv.width-12, mePos.x + dx/len*180*dt));
+        mePos.y = Math.max(12, Math.min(cv.height-12, mePos.y + dy/len*180*dt));
+        mePos.dir = Math.atan2(dy,dx);
+        mePos.anim = 'walk';
+        Net.move(mePos.x, mePos.y, mePos.dir, mePos.anim);
+      } else if (mePos.anim === 'walk') {
+        mePos.anim = '';
+        Net.move(mePos.x, mePos.y, mePos.dir, '');
+      }
+    }
+    paint();
+    requestAnimationFrame(tick);
+  }
+
+  ['players','chat','emote','joined','left','error','hosted','connected','disconnected'].forEach(evt => {
+    Net.on(evt, d => {
+      if (evt==='chat') log((d.name||'?')+': '+d.text);
+      else if (evt==='joined') log(d.name+' вошёл');
+      else if (evt==='left') log(d.name+' вышел');
+      else if (evt==='emote') log((d.id||'')+' эмоция '+d.emote);
+      else if (evt==='error') { status(d.message); log('ошибка: '+d.message); }
+      else if (evt==='hosted') { status(d.offline ? 'Офлайн' : ('Комната '+d.code)); $('code').value=d.code||''; $('link').value=Net.inviteLink(); }
+      else if (evt==='connected') { status('Подключено к '+d.code); $('link').value=Net.inviteLink(); }
+      else if (evt==='disconnected') { status(d.message); log(d.message); }
+      if (Net.me()) { mePos.x = Net.me().x; mePos.y = Net.me().y; $('map').value = Net.me().map; }
+    });
+  });
+
+  $('bHost').onclick = () => Net.host($('name').value).then(c => { status('Комната '+c); $('code').value=c; $('link').value=Net.inviteLink(); Net.move(mePos.x,mePos.y,0,''); }).catch(e => status(e.message));
+  $('bJoin').onclick = () => Net.join($('code').value, $('name').value).then(() => { status('Подключено'); if(Net.me()){ mePos.x=Net.me().x; mePos.y=Net.me().y; } }).catch(e => status(e.message));
+  $('bOff').onclick = () => Net.offline($('name').value).then(() => { status('Офлайн'); Net.move(mePos.x,mePos.y,0,''); });
+  $('bLeave').onclick = () => { Net.leave(); status('Вы вышли'); $('link').value=''; };
+  $('bChat').onclick = () => { const t=$('chat').value; $('chat').value=''; Net.chat(t); };
+  $('chat').addEventListener('keydown', e => { if(e.code==='Enter'){ $('bChat').click(); } });
+  $('map').onchange = () => Net.goMap($('map').value);
+  $('bLook').onclick = () => Net.setLook({color:$('color').value, t:Date.now()});
+  $('bEmote').onclick = () => Net.emote('✨');
+  $('bSit').onclick = () => { sitting = !sitting; Net.sit(sitting); };
+  window.addEventListener('keydown', e => { keys[e.code]=true; if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
+  window.addEventListener('keyup', e => { keys[e.code]=false; });
+
+  const room = Net.roomFromUrl();
+  if (room) { $('code').value = room; status('Приглашение в комнату '+room+'. Введите имя и нажмите «Войти».'); }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

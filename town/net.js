@@ -1,6 +1,8 @@
-/*! w40k-town net.js — host-authoritative PeerJS/WebRTC networking.
+/*! w40k-town net.js — host-authoritative WebRTC networking.
  *  One player's browser is the host. Public API is documented in NET_API.md.
- *  If window.Peer already exists (tests inject a mock), the PeerJS CDN is not loaded.
+ *  Transport: rtc-signal.js (window.RtcPeer, PeerJS-compatible) — WebRTC with signalling over
+ *  public MQTT brokers + Nostr relays, no PeerJS server. If window.Peer already exists (tests
+ *  inject a mock), it is used as is. If rtc-signal.js is missing, the PeerJS CDN is the fallback.
  */
 (function (root) {
   'use strict';
@@ -17,13 +19,14 @@
   var PAD_LATENCY = 24; // extra px allowed around a pad to cover latency
   var MOVE_MS = 1000 / 15;
   var CHAT_COOLDOWN = 400;
-  var JOIN_TIMEOUT = 15000;
-  var BROKER_TIMEOUT = 15000;
+  var JOIN_TIMEOUT = 25000;
+  var BROKER_TIMEOUT = 20000;
   var DEFAULT_MAP = 'hub';
   var LS_PID = 'w40ktown_pid';
   var LS_ME = 'w40ktown_me';
   var LS_ROSTER = 'w40ktown_roster';
   var LIB_URLS = [
+    'rtc-signal.js',
     'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js',
     'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js'
   ];
@@ -497,6 +500,7 @@
           var code = genCode();
           var peer = new root.Peer(PREFIX + code, peerOpts());
           self._peer = peer;
+          self._hookStatus(peer);
           peer.on('open', function (id) {
             if (settled) return;
             settled = true;
@@ -531,7 +535,7 @@
             }
             settled = true;
             clearTimeout(timer);
-            var msg = 'Ошибка сети: ' + (typ || 'неизвестно') + '.';
+            var msg = (root.RtcPeer && peer instanceof root.RtcPeer && err && err.message) ? err.message : 'Ошибка сети: ' + (typ || 'неизвестно') + '.';
             self._error('broker', msg);
             self._destroyPeer();
             reject(new Error(msg));
@@ -566,6 +570,7 @@
 
         var peer = new root.Peer(undefined, peerOpts());
         self._peer = peer;
+        self._hookStatus(peer);
         self._joinWait = { resolve: resolve, reject: reject, fail: fail, settle: function () { settled = true; clearTimeout(timer); } };
 
         peer.on('open', function (id) {
@@ -591,7 +596,7 @@
           if (typ === 'peer-unavailable') {
             fail('not-found', 'Комната ' + code + ' не найдена.');
           } else if (!self._started && typ !== 'network' && typ !== 'disconnected') {
-            fail('broker', 'Ошибка сети: ' + (typ || 'неизвестно') + '.');
+            fail(typ === 'webrtc' ? 'network' : 'broker', (root.RtcPeer && peer instanceof root.RtcPeer && err.message) ? err.message : 'Ошибка сети: ' + (typ || 'неизвестно') + '.');
           }
         });
         peer.on('disconnected', function () {
@@ -599,6 +604,19 @@
             try { peer.reconnect(); } catch (e) {}
           }
         });
+      });
+    },
+
+    // Russian connection progress from rtc-signal.js («Подключаюсь к сигнальным серверам… 3/8»).
+    // Emitted as Net 'status' {text, phase, open, total}; if nobody listens, shown in #mStatus.
+    _hookStatus: function (peer) {
+      var self = this;
+      if (!peer || !peer.on || !(root.RtcPeer && peer instanceof root.RtcPeer)) return;
+      peer.on('status', function (s) {
+        if (self._peer !== peer) return;
+        if ((self._handlers.status || []).length) { self._emit('status', s); return; }
+        if (self._started) return;
+        try { var el = root.document && document.getElementById('mStatus'); if (el && s.text) el.textContent = s.text; } catch (e) {}
       });
     },
 

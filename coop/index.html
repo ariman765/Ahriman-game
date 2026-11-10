@@ -96,7 +96,7 @@ select{background:#1a0808;border:2px solid #8a6a2a;color:#ffcc55;font:bold clamp
    <div class="row"><button class="btn" id="bHost">Создать комнату</button></div>
    <div class="row"><input type="text" id="cCode" maxlength="6" placeholder="КОД" style="width:6em;text-transform:uppercase"><button class="btn small" id="bJoin">Войти по коду</button></div>
    <div id="cStatus" style="color:#a08060;min-height:1.4em"></div>
-   <div style="color:#806040;font-size:.85em">Связь напрямую между игроками (WebRTC, PeerJS). Нужен интернет. Хост ведёт игру: врагов, предметы и уровни.</div>
+   <div style="color:#806040;font-size:.85em">Связь напрямую между игроками (WebRTC; сигналы через MQTT и Nostr, без сервера PeerJS). Нужен интернет. Хост ведёт игру: врагов, предметы и уровни.</div>
   </div>
   <button class="btn" id="bCoopBack">Назад</button></div>
 <div class="ov" id="scLobby"><h2>ОТРЯД ТЫСЯЧИ СЫНОВ</h2>
@@ -132,6 +132,7 @@ select{background:#1a0808;border:2px solid #8a6a2a;color:#ffcc55;font:bold clamp
 
 <div class="ov" id="scEnd"><h1>ИСТИНА ОБРЕТЕНА</h1><div class="story" id="endText"></div><div id="endStats"></div><br><button class="btn" id="bEMenu">В главное меню</button></div>
 </div>
+<script src="rtc-signal.js"></script>
 <script>
 'use strict';
 // ====================== УТИЛИТЫ ======================
@@ -1587,7 +1588,7 @@ function frame(now){
  }catch(err){ console.error(err); }
  requestAnimationFrame(frame);
 }
-// ====================== КООПЕРАТИВ (WebRTC через PeerJS) ======================
+// ====================== КООПЕРАТИВ (WebRTC; сигнализация rtc-signal.js: MQTT + Nostr) ======================
 const NOKEYS={};
 const PCOLORS=[{a:'#2a5ad0',d:'#13306e',g:'#d4a640',css:'#7ab4ff'},{a:'#b02030',d:'#5a1018',g:'#d4a640',css:'#ff7a7a'},{a:'#20905a',d:'#0e4a2c',g:'#d4a640',css:'#7aff9a'},{a:'#7a3ab0',d:'#3a1a5a',g:'#d4a640',css:'#d29aff'}];
 function paintSorcerer(f,c){ // колдун/Рубрикант Тысячи Сынов, 64×96; кадры: 0,4,1,5 — шаг, 2 — каст, 3 — повержен
@@ -1645,17 +1646,19 @@ const Net={coop:false,host:false,client:false,peer:null,hostConn:null,code:'',my
  getName(){ let n=($('cNick').value||'').trim().slice(0,16); if(!n) n='Колдун-'+(Math.random()*900+100|0); $('cNick').value=n; store('pdo_nick',n); return n; },
  genCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c=''; for(let i=0;i<5;i++) c+=A[Math.random()*A.length|0]; return c; },
  peerOpts(){ const q=new URLSearchParams(location.search); const o={debug:1}; if(q.get('peerhost')){ o.host=q.get('peerhost'); o.port=+(q.get('peerport')||9000); o.path=q.get('peerpath')||'/'; o.secure=q.get('peersecure')==='1'; } return o; },
- loadLib(){ return new Promise((res,rej)=>{ if(window.Peer) return res(); const urls=['https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js','https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js']; let i=0;
+ loadLib(){ return new Promise((res,rej)=>{ if(window.Peer) return res(); const urls=['rtc-signal.js','https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js','https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js']; let i=0;
   const next=()=>{ if(i>=urls.length) return rej(new Error('lib')); const sc=document.createElement('script'); sc.src=urls[i++]; sc.onload=()=>window.Peer?res():next(); sc.onerror=next; document.head.appendChild(sc); }; next(); }); },
  // ---------- хост ----------
  async create(){ if(this.peer) return; this.name=this.getName(); this.status('Подключение к сети…');
   try{ await this.loadLib(); }catch(e){ this.status('Не удалось загрузить сетевую библиотеку. Проверьте интернет.'); return; }
-  const open=(tries)=>{ this.code=this.genCode(); const peer=new Peer('ahrsorc-'+this.code,this.peerOpts()); this.peer=peer;
+  const open=(tries)=>{ this.code=this.genCode(); const peer=new Peer('ahrsorc-'+this.code,this.peerOpts()); this.peer=peer; this.hookStatus(peer);
    peer.on('open',id=>{ this.myId=id; this.coop=true; this.host=true; this.client=false; this.slot=0; this.peers={}; this.started=false; this.lobbyLvl=0; this.lobbyDiff=diffIdx; this.showLobby(); });
    peer.on('connection',c=>this.onConn(c));
    peer.on('disconnected',()=>{ if(!this.leaving) try{peer.reconnect();}catch(e){} });
-   peer.on('error',err=>{ if(err.type==='unavailable-id'&&tries<5){ peer.destroy(); this.peer=null; open(tries+1); } else if(!this.coop){ this.status('Ошибка сети: '+err.type); try{peer.destroy();}catch(e){} this.peer=null; } else this.lstatus('Сеть: '+err.type); }); };
+   peer.on('error',err=>{ if(err.type==='unavailable-id'&&tries<5){ peer.destroy(); this.peer=null; open(tries+1); } else if(!this.coop){ this.status(this.errText(err)); try{peer.destroy();}catch(e){} this.peer=null; } else this.lstatus(this.errText(err)); }); };
   open(0); },
+ hookStatus(peer){ if(window.RtcPeer&&peer instanceof RtcPeer) peer.on('status',s=>{ if(this.peer===peer&&!this.coop&&s.text) this.status(s.text); }); },
+ errText(err){ return (window.RtcPeer&&this.peer instanceof RtcPeer&&err&&err.message)?err.message:'Ошибка сети: '+(err&&err.type); },
  onConn(c){ c.on('data',d=>this.onHostData(c,d)); c.on('close',()=>this.dropPeer(c.peer)); c.on('error',()=>this.dropPeer(c.peer)); },
  onHostData(c,m){ const id=c.peer; let p=this.peers[id];
   if(m.t==='hello'){ const used=Object.values(this.peers).map(q=>q.slot); if(Object.keys(this.peers).length>=3){ c.send({t:'bye',reason:'Комната заполнена (максимум 4 игрока).'}); setTimeout(()=>c.close(),300); return; }
@@ -1695,12 +1698,12 @@ const Net={coop:false,host:false,client:false,peer:null,hostConn:null,code:'',my
  async join(code){ code=String(code||'').trim().toUpperCase(); if(code.length<4){ this.status('Введите код комнаты'); return; } if(this.peer) return;
   this.name=this.getName(); this.status('Подключение к комнате '+code+'…');
   try{ await this.loadLib(); }catch(e){ this.status('Не удалось загрузить сетевую библиотеку. Проверьте интернет.'); return; }
-  const peer=new Peer(undefined,this.peerOpts()); this.peer=peer; let ok=false;
-  const to=setTimeout(()=>{ if(!ok){ this.status('Не удалось подключиться: хост не ответил или сеть блокирует прямое соединение (WebRTC). Попробуйте другую сеть или отключите VPN.'); this.reset(); } },15000);
+  const peer=new Peer(undefined,this.peerOpts()); this.peer=peer; this.hookStatus(peer); let ok=false;
+  const to=setTimeout(()=>{ if(!ok){ this.status('Не удалось подключиться: хост не ответил или сеть блокирует прямое соединение (WebRTC). Попробуйте другую сеть.'); this.reset(); } },25000);
   peer.on('open',id=>{ this.myId=id; const c=peer.connect('ahrsorc-'+code,{reliable:true}); this.hostConn=c;
    c.on('open',()=>{ ok=true; clearTimeout(to); this.coop=true; this.client=true; this.host=false; this.code=code; this.peers={}; c.send({t:'hello',name:this.name}); });
    c.on('data',m=>this.onClientData(m)); c.on('close',()=>this.hostGone()); c.on('error',()=>this.hostGone()); });
-  peer.on('error',err=>{ if(err.type==='peer-unavailable'){ clearTimeout(to); this.status('Комната '+code+' не найдена.'); this.reset(); } else if(!this.coop){ clearTimeout(to); this.status('Ошибка сети: '+err.type); this.reset(); } else if(err.type==='network'||err.type==='disconnected'){} });
+  peer.on('error',err=>{ if(err.type==='peer-unavailable'){ clearTimeout(to); this.status('Комната '+code+' не найдена.'); this.reset(); } else if(!this.coop){ clearTimeout(to); this.status(this.errText(err)); this.reset(); } else if(err.type==='network'||err.type==='disconnected'){} });
   peer.on('disconnected',()=>{ if(!this.leaving) try{peer.reconnect();}catch(e){} }); },
  hostGone(){ if(this.leaving||!this.client) return; const wasPlaying=true; this.reset(); unlock(); G.state='netmsg'; $('nmText').textContent='Хост покинул игру. Сессия завершена.'; show('scNetMsg'); },
  onClientData(m){

@@ -13,6 +13,8 @@
   var MAX_LOOK = 4096;
   var MAX_MAP = 64;
   var MAX_SPEED = 400;
+  var PAD_DEFAULT_R = 24;
+  var PAD_LATENCY = 24; // extra px allowed around a pad to cover latency
   var MOVE_MS = 1000 / 15;
   var CHAT_COOLDOWN = 400;
   var JOIN_TIMEOUT = 15000;
@@ -80,6 +82,33 @@
 
   function lookSizeOk(look) {
     try { return JSON.stringify(look == null ? null : look).length <= MAX_LOOK; } catch (e) { return false; }
+  }
+
+  // Host-side look cleanup. Calls window.FACTIONS.migrate / .valid when the client has loaded factions.js.
+  function normalizeLook(look) {
+    var cloned = cloneLook(look);
+    if (cloned === undefined) return undefined;
+    var F = root.FACTIONS;
+    if (!F || cloned == null) return cloned;
+    try {
+      if (typeof F.migrate === 'function') {
+        var migrated = F.migrate(cloned);
+        if (migrated && typeof migrated === 'object') {
+          var rec = cloneLook(migrated);
+          if (rec !== undefined) cloned = rec;
+        }
+      }
+      if (typeof F.valid === 'function' && !F.valid(cloned.side, cloned.faction)) {
+        var def = typeof F.migrate === 'function' ? F.migrate({}) : null;
+        if (def && typeof def === 'object' && F.valid(def.side, def.faction)) {
+          cloned.side = def.side;
+          cloned.faction = def.faction;
+          var rec2 = cloneLook(cloned);
+          if (rec2 !== undefined) cloned = rec2;
+        }
+      }
+    } catch (e) {}
+    return lookSizeOk(cloned) ? cloned : undefined;
   }
 
   function persistId() {
@@ -215,6 +244,9 @@
     _lastChatT: 0,
     _joinWait: null,
     _openWait: null,
+    _world: null,       // {maps:{id:{spawn,pads}}} when the client called setWorld
+    _maxSpeed: MAX_SPEED,
+    _mapBeforeGo: null, // client: snapshot used to revert a denied goMap
 
     on: function (evt, cb) {
       if (typeof cb !== 'function') return function () {};
@@ -387,6 +419,22 @@
       return true;
     },
 
+    setWorld: function (world) {
+      if (!world || typeof world !== 'object') {
+        this._world = null;
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(world, 'maps')) {
+        var maps = world.maps;
+        if (!maps || typeof maps !== 'object' || !Object.keys(maps).length) this._world = null;
+        else this._world = { maps: maps };
+      }
+      if (world.maxSpeed != null) {
+        var sp = Number(world.maxSpeed);
+        if (isFinite(sp) && sp > 0) this._maxSpeed = sp;
+      }
+    },
+
     goMap: function (mapId) {
       if (!this._me || !this._started) return;
       mapId = sanitizeMap(mapId);
@@ -395,6 +443,7 @@
         return;
       }
       if (this._me.map === mapId) return;
+      this._mapBeforeGo = { map: this._me.map, x: this._me.x, y: this._me.y, others: this._others };
       this._me.map = mapId;
       this._others = {};
       this._emit('players', { full: true, list: [] });
@@ -410,6 +459,8 @@
       var stored = loadMeStore();
       var nm = sanitizeName(name != null && String(name).trim() ? name : stored.name);
       var look = stored.look !== undefined ? cloneLook(stored.look) : null;
+      if (look === undefined) look = null;
+      look = normalizeLook(look);
       if (look === undefined) look = null;
       this._me = blankMe('', nm, look);
       this._me.persistId = this._persistId;
@@ -579,6 +630,8 @@
         var stored = rosterEntry(pid);
         var look = stored && stored.look !== undefined ? stored.look : cloneLook(m.look);
         if (look === undefined) look = null;
+        look = normalizeLook(look);
+        if (look === undefined) look = null;
         p = blankMe(id, name, look);
         p.persistId = pid;
         p.conn = c;
@@ -640,7 +693,8 @@
       var t = now();
       if (p.lastMoveT) {
         var dt = Math.min(2, (t - p.lastMoveT) / 1000);
-        var maxDist = MAX_SPEED * Math.max(dt, MOVE_MS / 1000);
+        var cap = this._maxSpeed > 0 ? this._maxSpeed : MAX_SPEED;
+        var maxDist = cap * Math.max(dt, MOVE_MS / 1000);
         var dx = x - p.x, dy = y - p.y;
         var dist = Math.hypot(dx, dy);
         if (dist > maxDist && dist > 0) {
@@ -690,20 +744,71 @@
         if (p === this._me) this._error('look-too-big', 'Образ персонажа слишком большой (лимит около 4 КБ).');
         return;
       }
-      var cloned = cloneLook(look);
-      if (cloned === undefined) return;
+      var cloned = normalizeLook(look);
+      if (cloned === undefined) {
+        if (p === this._me) this._error('look-too-big', 'Образ персонажа слишком большой (лимит около 4 КБ).');
+        return;
+      }
       p.look = cloned;
       saveRosterEntry(p.persistId, p.name, cloned);
       if (p === this._me) saveMeStore({ name: p.name, look: cloned });
       this._pushPlayers(p.map);
+      if (p !== this._me) this._safeSend(p.conn, { t: 'players', full: false, you: publicPlayer(p), list: [] });
     },
 
-    _hostGoMap: function (p, mapId) {
-      mapId = sanitizeMap(mapId);
-      if (p.map === mapId) return;
+    _worldMaps: function () {
+      return this._world && this._world.maps && typeof this._world.maps === 'object' ? this._world.maps : null;
+    },
+
+    _nearPad: function (p) {
+      var maps = this._worldMaps();
+      if (!maps || !p) return true;
+      var cur = maps[p.map];
+      if (!cur || !cur.pads || !cur.pads.length) return false;
+      for (var i = 0; i < cur.pads.length; i++) {
+        var pad = cur.pads[i];
+        if (!pad) continue;
+        var r = pad.r != null && isFinite(+pad.r) ? +pad.r : PAD_DEFAULT_R;
+        if (Math.hypot((p.x || 0) - pad.x, (p.y || 0) - pad.y) <= r + PAD_LATENCY) return true;
+      }
+      return false;
+    },
+
+    _spawnOf: function (mapId) {
+      var maps = this._worldMaps();
+      var m = maps && maps[mapId];
+      if (!m) return { x: 0, y: 0 };
+      if (m.spawn && isFinite(+m.spawn.x) && isFinite(+m.spawn.y)) return { x: +m.spawn.x, y: +m.spawn.y };
+      if (m.pads && m.pads[0] && isFinite(+m.pads[0].x) && isFinite(+m.pads[0].y)) return { x: +m.pads[0].x, y: +m.pads[0].y };
+      return { x: 0, y: 0 };
+    },
+
+    _sendTeleportDenied: function (p, message) {
+      var payload = { t: 'error', code: 'teleport-denied', message: message, map: p.map, x: p.x, y: p.y };
+      if (p === this._me) this._error('teleport-denied', message);
+      else {
+        this._safeSend(p.conn, payload);
+        this._safeSend(p.conn, {
+          t: 'players',
+          full: true,
+          map: p.map,
+          you: publicPlayer(p),
+          list: this._playersOnMap(p.map, p.id)
+        });
+      }
+    },
+
+    _confirmGoMap: function (p, mapId, place) {
       var old = p.map;
       p.map = mapId;
-      p.lastMoveT = 0;
+      if (place) {
+        var pos = this._spawnOf(mapId);
+        p.x = pos.x;
+        p.y = pos.y;
+        p.lastMoveT = now();
+      } else {
+        p.lastMoveT = 0;
+      }
       if (p === this._me) {
         this._others = {};
         this._emit('players', { full: true, list: this._playersOnMap(mapId, p.id) });
@@ -712,11 +817,31 @@
           t: 'players',
           full: true,
           map: mapId,
+          you: publicPlayer(p),
           list: this._playersOnMap(mapId, p.id)
         });
       }
       this._pushPlayers(old);
       this._pushPlayers(mapId);
+    },
+
+    _hostGoMap: function (p, mapId) {
+      mapId = sanitizeMap(mapId);
+      if (p.map === mapId) return;
+      var maps = this._worldMaps();
+      if (maps) {
+        if (!maps[mapId]) {
+          this._sendTeleportDenied(p, 'Телепорт недоступен: такой локации нет.');
+          return;
+        }
+        if (!this._nearPad(p)) {
+          this._sendTeleportDenied(p, 'Телепорт недоступен: встань на площадку.');
+          return;
+        }
+        this._confirmGoMap(p, mapId, true);
+        return;
+      }
+      this._confirmGoMap(p, mapId, false);
     },
 
     _playersOnMap: function (map, exceptId) {
@@ -846,7 +971,38 @@
         case 'bye':
           this._gotBye(m);
           break;
+        case 'error':
+          if (m.code === 'teleport-denied') this._revertGoMap(m);
+          this._error(m.code || 'network', m.message || 'Ошибка сети');
+          break;
       }
+    },
+
+    _revertGoMap: function (m) {
+      var prev = this._mapBeforeGo;
+      this._mapBeforeGo = null;
+      if (!this._me) return;
+      if (m && m.map) this._me.map = sanitizeMap(m.map);
+      else if (prev) this._me.map = prev.map;
+      if (m && m.x != null) this._me.x = finiteNum(m.x, this._me.x);
+      else if (prev) this._me.x = prev.x;
+      if (m && m.y != null) this._me.y = finiteNum(m.y, this._me.y);
+      else if (prev) this._me.y = prev.y;
+      if (prev && prev.others) this._others = prev.others;
+    },
+
+    _applySelf: function (you) {
+      if (!you || !this._me) return;
+      if (you.id) this._me.id = you.id;
+      if (you.name != null) this._me.name = you.name;
+      if (you.look !== undefined) this._me.look = you.look == null ? null : you.look;
+      if (you.map != null) this._me.map = sanitizeMap(you.map);
+      if (you.x != null) this._me.x = finiteNum(you.x, this._me.x);
+      if (you.y != null) this._me.y = finiteNum(you.y, this._me.y);
+      if (you.dir != null) this._me.dir = sanitizeDir(you.dir);
+      if (you.anim !== undefined) this._me.anim = sanitizeAnim(you.anim);
+      if (you.sit != null) this._me.sit = !!you.sit;
+      if (you.emote !== undefined) this._me.emote = you.emote;
     },
 
     _applyWelcome: function (m) {
@@ -881,6 +1037,11 @@
     },
 
     _applyPlayers: function (m) {
+      if (m.you) {
+        this._applySelf(m.you);
+        this._mapBeforeGo = null;
+        saveMeStore({ name: this._me.name, look: this._me.look });
+      }
       if (m.map && this._me) this._me.map = sanitizeMap(m.map);
       var list = m.list || [];
       if (m.full) {

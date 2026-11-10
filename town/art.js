@@ -30,23 +30,23 @@ const BUILTIN = {
       look: { prim: '#b01e24', sec: '#1a1a1a', trim: '#d9a521', eye: '#7dff6a', helm: 'mk7', pads: 'round', weapon: 'chainsword', acc: ['jump'], hair: 'long', hairC: '#e8c870', skin: '#f0d0b0' },
       feat: { emblem: { bmp: ['..k..', 'k.k.k', 'kkkkk', '.kkk.', '..k..'] } } },
     sw: { side: 'loyal', name: 'Космические Волки', note: 'Фенрис · волчьи шкуры',
-      look: { prim: '#6f8296', sec: '#c9a64a', trim: '#e0c870', eye: '#ffd23a', helmet: false, helm: 'wolf', hair: 'braids', hairC: '#c07a32', beard: 'full', pads: 'spiked', cloak: 'pelt', cloakC: '#6a5238', weapon: 'axe', acc: ['pack'], skin: '#e2b48e' },
+      look: { prim: '#6f8296', sec: '#c9a64a', trim: '#e0c870', eye: '#ffd23a', helmet: false, helm: 'wolf', hair: 'wolfbraids', hairC: '#c07a32', beard: 'wolf', brows: 'thick', scar: 'cheek', paint: 'runes', pierce: 'ear', pads: 'spiked', cloak: 'pelt', cloakC: '#6a5238', weapon: 'axe', acc: ['pack'], skin: '#e2b48e' },
       feat: { emblem: { bmp: ['k...k', 'kk.kk', 'kkkkk', '.kwk.', '..k..'] } } },
     if: { side: 'loyal', name: 'Имперские Кулаки', note: 'Терра · стражи Дворца',
       look: { prim: '#e3b81a', sec: '#1a1a1a', trim: '#1a1a1a', eye: '#7dff6a', helm: 'mk7', pads: 'square', weapon: 'hammer', acc: ['pack'] },
       feat: { emblem: { bmp: ['rrrr.', 'rrrrr', 'rrrrr', '.rrrr', '.rrr.'] } } },
     sal: { side: 'loyal', name: 'Саламандры', note: 'Ноктюрн · огнемёты и молоты',
-      look: { prim: '#1e6a32', sec: '#1a1a1a', trim: '#d9a521', eye: '#ff4a1a', helmet: false, helm: 'mk7', skin: '#1e1e24', hair: 'bald', hairC: '#1e1e24', pads: 'round', weapon: 'flamer', acc: ['pack'], cloak: 'pelt', cloakC: '#2a6a3a' },
+      look: { prim: '#1e6a32', sec: '#1a1a1a', trim: '#d9a521', eye: '#ff4a1a', helmet: false, helm: 'mk7', skin: '#1e1e24', hair: 'bald', hairC: '#1e1e24', paint: 'brands', eyes: 'glow', mouth: 'smile', pads: 'round', weapon: 'flamer', acc: ['pack'], cloak: 'pelt', cloakC: '#2a6a3a' },
       feat: { emblem: { bmp: ['..o..', '.oo..', '.oyo.', 'oyyyo', '.ooo.'] } } },
     ws: { side: 'loyal', name: 'Белые Шрамы', note: 'Чогорис · стремительные всадники',
-      look: { prim: '#e8e4d8', sec: '#b01e24', trim: '#b01e24', eye: '#ff3030', helmet: false, helm: 'mk7', hair: 'topknot', hairC: '#141414', beard: 'moustache', skin: '#d9a87a', pads: 'round', weapon: 'sword', acc: ['pack'] },
+      look: { prim: '#e8e4d8', sec: '#b01e24', trim: '#b01e24', eye: '#ff3030', helmet: false, helm: 'mk7', hair: 'topknot', hairC: '#141414', beard: 'handlebar', skin: '#d9a87a', scar: 'cheek', eyes: 'narrow', pads: 'round', weapon: 'sword', acc: ['pack'] },
       feat: { emblem: { bmp: ['...r.', '..r..', '.rrr.', '..r..', '.r...'] } } },
     rg: { side: 'loyal', name: 'Гвардия Ворона', note: 'Освобождение · удары из тени',
       look: { prim: '#26262c', sec: '#e8e4d8', trim: '#c8ccd4', eye: '#ff3030', helm: 'beak', pads: 'round', weapon: 'claws', acc: ['jump'], skin: '#e8d8c8', hairC: '#141414' },
       feat: { emblem: { bmp: ['.w...', 'www..', '.wwww', '..ww.', '.w.w.'] } } },
     // ---------- Легионы-предатели ----------
     ts: { side: 'traitor', arch: 'tsons', name: 'Тысяча Сынов', note: 'Планета Колдунов · Ариман',
-      look: { prim: '#1d4fa8', sec: '#d9a521', trim: '#f2d36b', eye: '#4ff0ff', helm: 'crest', pads: 'round', weapon: 'staff', cloak: 'cloak', cloakC: '#2b2266', acc: ['seals'], hair: 'wild', hairC: '#dfe3ea', beard: 'goatee', ears: 'pointed', skin: '#ecc8a8' },
+      look: { prim: '#1d4fa8', sec: '#d9a521', trim: '#f2d36b', eye: '#4ff0ff', helm: 'crest', pads: 'round', weapon: 'staff', cloak: 'cloak', cloakC: '#2b2266', acc: ['seals'], hair: 'psyker', hairC: '#dfe3ea', beard: 'goatee', ears: 'pointed', skin: '#ecc8a8', eyes: 'glow', eyeC: '#4ff0ff', paint: 'studs' },
       feat: { emblem: { bmp: ['..g..', '.ggg.', 'ggcgg', '.ggg.', '..g..'] } } },
     bl: { side: 'traitor', name: 'Чёрный Легион', note: 'Абаддон · Долгая Война',
       look: { prim: '#141418', sec: '#d4af37', trim: '#d4af37', eye: '#ff3030', helm: 'horned', pads: 'spiked', weapon: 'chainsword', acc: ['pack'] },
@@ -87,17 +87,17 @@ const BUILTIN = {
       feat: { daemon: 'daemonette', horns: 'slaanesh', claws: true } },
     // ---------- Иные (NPC и старые образы) ----------
     guard: { side: 'other', name: 'Имперский гвардеец',
-      look: { body: 'human', helm: 'cap', hair: 'short', hairC: '#4a3420', skin: '#d6a47c', prim: '#6f6b3c', sec: '#3f4a2c', trim: '#a08a5a', pads: 'small', weapon: 'lasgun', acc: [], eye: '#5a3a2a' }, feat: { chest: 'none' } },
+      look: { body: 'human', helm: 'cap', hair: 'crop', hairC: '#4a3420', beard: 'stubble', brows: 'thick', skin: '#d6a47c', prim: '#6f6b3c', sec: '#3f4a2c', trim: '#a08a5a', pads: 'small', weapon: 'lasgun', acc: [], eye: '#5a3a2a' }, feat: { chest: 'none' } },
     eldar: { side: 'other', name: 'Аэльдари провидица',
       look: { body: 'slim', helm: 'eldar', hair: 'long', hairC: '#1c1a2e', ears: 'pointed', skin: '#f2dcc8', prim: '#e9e3cf', sec: '#2e7d5b', trim: '#d8b04a', pads: 'small', cloak: 'cloak', cloakC: '#1f6b4a', robe: true, weapon: 'staff', acc: [], eye: '#7dffb0' }, feat: { chest: 'none' } },
     mech: { side: 'other', name: 'Техножрец Механикус',
-      look: { body: 'human', helm: 'hood', hair: 'bald', hairC: '#555555', skin: '#c9a890', prim: '#a3221e', sec: '#4a4a52', trim: '#c9a24a', pads: 'none', cloakC: '#7a1a16', robe: true, weapon: 'axe', acc: ['skull'], eye: '#5aff5a' }, feat: { chest: 'none' } },
+      look: { body: 'human', helm: 'hood', hair: 'bald', hairC: '#555555', skin: '#b8bcc4', aug: 'servitor', prim: '#a3221e', sec: '#4a4a52', trim: '#c9a24a', pads: 'none', cloakC: '#7a1a16', robe: true, weapon: 'axe', acc: ['skull'], eye: '#5aff5a' }, feat: { chest: 'none' } },
     inq: { side: 'other', name: 'Инквизитор',
-      look: { body: 'human', helm: 'hat', hair: 'short', hairC: '#5a3a22', beard: 'goatee', skin: '#e0b896', prim: '#2b2a30', sec: '#7a1a1a', trim: '#d4af37', pads: 'small', cloak: 'cloak', cloakC: '#5a1414', robe: true, weapon: 'book', acc: ['seals', 'skull'], eye: '#6a8cff' }, feat: { chest: 'none' } },
+      look: { body: 'human', helm: 'hat', hair: 'short', hairC: '#5a3a22', beard: 'goatee', skin: '#e0b896', aug: 'eyeR', scar: 'brow', brows: 'angry', mouth: 'grim', prim: '#2b2a30', sec: '#7a1a1a', trim: '#d4af37', pads: 'small', cloak: 'cloak', cloakC: '#5a1414', robe: true, weapon: 'book', acc: ['seals', 'skull'], eye: '#6a8cff' }, feat: { chest: 'none' } },
     ork: { side: 'other', name: 'Орк',
-      look: { body: 'ork', helm: 'ork', hair: 'mohawk', hairC: '#222222', ears: 'pointed', skin: '#5b8a2e', prim: '#6b5a3e', sec: '#a33a1e', trim: '#a6a6a0', pads: 'spiked', cloakC: '#5a3a20', weapon: 'chainsword', acc: [], eye: '#ff3a1a' }, feat: { chest: 'none' } },
+      look: { body: 'ork', helm: 'ork', hair: 'mohawk', hairC: '#222222', ears: 'pointed', brows: 'angry', scar: 'many', pierce: 'ears', skin: '#5b8a2e', prim: '#6b5a3e', sec: '#a33a1e', trim: '#a6a6a0', pads: 'spiked', cloakC: '#5a3a20', weapon: 'chainsword', acc: [], eye: '#ff3a1a' }, feat: { chest: 'none' } },
     sister: { side: 'other', name: 'Сестра Битвы',
-      look: { body: 'human', helmet: false, helm: 'mk7', hair: 'bob', hairC: '#eeeeee', skin: '#f0cfb0', prim: '#26262c', sec: '#a51c24', trim: '#d8d8de', pads: 'round', cloak: 'cloak', cloakC: '#a51c24', robe: true, weapon: 'bolter', acc: ['seals'], eye: '#3a7aff' }, feat: { chest: 'none' } },
+      look: { body: 'human', helmet: false, helm: 'mk7', hair: 'bob', hairC: '#eeeeee', skin: '#f0cfb0', paint: 'seal',  prim: '#26262c', sec: '#a51c24', trim: '#d8d8de', pads: 'round', cloak: 'cloak', cloakC: '#a51c24', robe: true, weapon: 'bolter', acc: ['seals'], eye: '#3a7aff' }, feat: { chest: 'none' } },
   },
 };
 
@@ -141,16 +141,32 @@ const BUILTIN = {
     if (BUILTIN.legacy[x]) return BUILTIN.legacy[x];
     return null;
   }
-  const BASE = { body: 'astartes', helmet: true, helm: 'mk7', hair: 'short', hairC: '#3a2a1e', beard: 'none', ears: 'human', skin: '#d9a882', prim: '#1d4fa8', sec: '#d9a521', trim: '#f2d36b', pads: 'round', cloak: 'none', cloakC: '#2a2a30', robe: false, weapon: 'bolter', acc: [], eye: '#7dff6a', heraldry: true };
+  const BASE = { body: 'astartes', helmet: true, helm: 'mk7', hair: 'short', hairC: '#3a2a1e', beard: 'none', ears: 'human', skin: '#d9a882', prim: '#1d4fa8', sec: '#d9a521', trim: '#f2d36b', pads: 'round', cloak: 'none', cloakC: '#2a2a30', robe: false, weapon: 'bolter', acc: [], eye: '#7dff6a', heraldry: true,
+    // v3: лицо. eyeC / beardC не заданы — берутся eye / hairC.
+    eyes: 'normal', brows: 'normal', mouth: 'neutral', scar: 'none', paint: 'none', aug: 'none', pierce: 'none' };
+  const FACE_DEF = { eyes: 'normal', brows: 'normal', mouth: 'neutral', scar: 'none', paint: 'none', aug: 'none', pierce: 'none' };
   const defaultLook = (x = 'ts') => { const id = resolveFaction(x) || 'ts', f = FL[id]; return JSON.parse(JSON.stringify(Object.assign({ v: 2, side: f.side, faction: id, arch: f.arch }, BASE, f.look))); };
   const normLook = L => { const id = resolveFaction(L && (L.faction || L.legion || L.arch)) || 'ts'; const o = Object.assign(defaultLook(id), L || {}); o.faction = id; o.side = FL[id].side; o.arch = FL[id].arch; if (!Array.isArray(o.acc)) o.acc = []; return o; };
   const featOf = L => (FL[L.faction] && FL[L.faction].feat) || {};
 
   const PAL = {
     armor: ['#1f3f9a', '#1d4fa8', '#b01e24', '#6a1a1a', '#1e4a2a', '#1e6a32', '#6f8296', '#e3b81a', '#26262c', '#141418', '#e8e4d8', '#7a2a8a', '#2a6a7a', '#7c8088', '#a0aa78', '#d9a521', '#d4af37', '#c0c4cc', '#1a2244', '#e86ad0', '#d86a1a', '#6f6b3c'],
-    hair: ['#dfe3ea', '#f4e4a0', '#e8c870', '#c07a32', '#7a3a1a', '#3a2a1e', '#141414', '#9a1a1a', '#6a3aa0', '#2a6ab0', '#eeeeee'],
-    skin: ['#f6dcc4', '#ecc8a8', '#e0b48e', '#c88a62', '#9a6440', '#6a4028', '#1e1e24', '#5b8a2e', '#9aa86a', '#b01e24', '#ff6ad0', '#d8b8e8', '#e8e4f0'],
+    hair: ['#dfe3ea', '#f4e4a0', '#e8c870', '#c07a32', '#b8501e', '#7a3a1a', '#5a3a22', '#3a2a1e', '#141414', '#8a8a90', '#b8b8c0', '#eeeeee', '#9a1a1a', '#6a3aa0', '#2a6ab0', '#2a8a5a'],
+    skin: ['#fff0e4', '#f6dcc4', '#ecc8a8', '#e0b48e', '#c88a62', '#9a6440', '#6a4028', '#3a2418', '#1e1e24', '#e8e4f0', '#b8bcc4', '#8a8e96', '#c8b8a8', '#a8b0a0', '#5b8a2e', '#9aa86a', '#b01e24', '#ff6ad0', '#d8b8e8'],
     glow: ['#4ff0ff', '#7dff6a', '#ff3a3a', '#ffd23a', '#c86aff', '#ff6ad0', '#ffffff', '#3a7aff', '#ff8a1a', '#d8ff3a'],
+    eyes: ['#5a3a2a', '#3a6ab0', '#3a9a5a', '#8a8a92', '#c89a3a', '#ff2a2a', '#4ff0ff', '#7dff6a', '#c86aff', '#ffd23a', '#ffffff', '#16141a'],
+  };
+  const FACE = {
+    hair: ['short', 'long', 'wild', 'mohawk', 'topknot', 'braids', 'bob', 'bald', 'shaved', 'crop', 'ponytail', 'braid', 'dreads', 'side', 'slick', 'mullet', 'tonsure', 'psyker', 'wolfbraids'],
+    beard: ['none', 'stubble', 'goatee', 'moustache', 'handlebar', 'walrus', 'chops', 'chinstrap', 'full', 'long', 'braided', 'forked', 'wolf'],
+    ears: ['human', 'pointed', 'big', 'aug'],
+    eyes: ['normal', 'narrow', 'wide', 'stern', 'tired', 'closed', 'glow'],
+    brows: ['normal', 'thick', 'thin', 'angry', 'raised', 'uni', 'none'],
+    mouth: ['neutral', 'smile', 'smirk', 'grim', 'grin', 'shout'],
+    scar: ['none', 'eye', 'cheek', 'nose', 'lip', 'brow', 'cross', 'burn', 'many'],
+    paint: ['none', 'brands', 'studs', 'seal', 'stripe', 'tears', 'skull', 'runes', 'star'],
+    aug: ['none', 'eyeR', 'eyeL', 'visor', 'plate', 'jaw', 'cables', 'servitor'],
+    pierce: ['none', 'ear', 'ears', 'studs', 'nose', 'brow', 'lip'],
   };
 
   // ---------- персонаж ----------
@@ -379,19 +395,161 @@ const BUILTIN = {
       else if (W === 'scythe') { R(wx, tT - 12, 2, FL - tT + 8, '#4a3a2a'); R(wx + 2, tT - 13, 9, 2, '#9a9a7a'); R(wx + 9, tT - 11, 3, 4, '#9a9a7a'); R(wx + 2, tT - 13, 9, 1, '#c8c8a8'); }
       else if (W === 'book') { if (right) { R(CX - 4, tT + 5, 8, 6, '#7a1a1a'); R(CX - 4, tT + 5, 8, 1, T); R(CX - 3, tT + 6, 6, 4, '#efe6c8'); R(CX, tT + 6, 1, 4, '#b8ab88'); } }
     };
-    // ----- голова -----
+    // ----- голова (v3: лицо, причёски, бороды) -----
+    const bc = isHex(L.beardC) ? L.beardC : hc, bd = sh(bc, -.3), bl = sh(bc, .35);
+    const EC = isD ? E : (isHex(L.eyeC) ? L.eyeC : E);
+    const human = !isD; // демоны игнорируют лицевые опции
+    const stub = mix(skin, hc, .45), bstub = mix(skin, bc, .4);
+    const scarC = mix(skin, '#f2b8a8', .6), scarD = sh(skin, -.3);
+    const GOLD = '#e0b840', SILV = '#c8ccd4', MET = '#7a7e88', METD = '#4a4c54';
+    const browC = L.body === 'ork' || isD ? sh(skin, -.5) : mix(hd, bd, .5);
     const hairBack = () => {
       if (dir !== 'down' || !faceVis) return;
-      if (L.hair === 'long') R(hx - 1, hy + 1, 14, 14, hd);
-      else if (L.hair === 'wild') R(hx - 1, hy + 2, 14, 8, hd);
-      else if (L.hair === 'bob') R(hx, hy + 1, 12, 9, hd);
+      const st = L.hair;
+      if (st === 'long') R(hx - 1, hy + 1, 14, 14, hd);
+      else if (st === 'wild') R(hx - 1, hy + 2, 14, 8, hd);
+      else if (st === 'bob') R(hx, hy + 1, 12, 9, hd);
+      else if (st === 'ponytail') { R(hx + 11, hy + 3, 2, 7, hd); R(hx + 12, hy + 9, 1, 2, hd); }
+      else if (st === 'braid') { R(hx + 11, hy + 4, 2, 10, hd); R(hx + 11, hy + 9, 2, 1, GOLD); }
+      else if (st === 'dreads') { R(hx - 1, hy + 2, 14, 11, hd); for (let i = 0; i < 14; i += 2) R(hx - 1 + i, hy + 12, 1, 1 + (i % 3), hd); }
+      else if (st === 'mullet') R(hx, hy + 6, 12, 8, hd);
+      else if (st === 'psyker') { R(hx - 2, hy, 16, 16, hd); R(hx - 3, hy + 6, 1, 8, hd); R(hx + 14, hy + 6, 1, 8, hd); }
+      else if (st === 'wolfbraids') R(hx - 1, hy + 2, 14, 7, hd);
     };
     const ears = (side) => {
-      if (side) { if (L.ears === 'pointed') { R(hx + 8, hy + 5, 2, 2, skin); R(hx + 10, hy + 3, 1, 3, skin); } else R(hx + 8, hy + 5, 2, 2, skin); return; }
-      if (L.ears === 'pointed') { R(hx, hy + 5, 1, 2, skin); R(hx - 1, hy + 3, 1, 3, skin); R(hx - 2, hy + 2, 1, 2, skin); R(hx + 11, hy + 5, 1, 2, skin); R(hx + 12, hy + 3, 1, 3, skin); R(hx + 13, hy + 2, 1, 2, skin); }
-      else { R(hx, hy + 5, 1, 2, skin); R(hx + 11, hy + 5, 1, 2, skin); }
+      const st = L.ears, auE = st === 'aug';
+      const ec = auE ? MET : skin;
+      if (side) {
+        if (st === 'pointed') { R(hx + 8, hy + 5, 2, 2, skin); R(hx + 10, hy + 3, 1, 3, skin); }
+        else if (st === 'big') { R(hx + 7, hy + 4, 3, 4, skin); R(hx + 8, hy + 5, 1, 2, skD); }
+        else { R(hx + 8, hy + 5, 2, 2, ec); if (auE) { R(hx + 8, hy + 4, 2, 1, METD); R(hx + 9, hy + 5, 1, 1, '#ff3030'); } }
+        if (human) { const p = L.pierce; if (p === 'ear' || p === 'ears' || p === 'studs') R(hx + 8, hy + 7, 1, 2, GOLD); if (p === 'studs') { R(hx + 9, hy + 4, 1, 1, SILV); R(hx + 9, hy + 6, 1, 1, SILV); } }
+        return;
+      }
+      if (st === 'pointed') { R(hx, hy + 5, 1, 2, skin); R(hx - 1, hy + 3, 1, 3, skin); R(hx - 2, hy + 2, 1, 2, skin); R(hx + 11, hy + 5, 1, 2, skin); R(hx + 12, hy + 3, 1, 3, skin); R(hx + 13, hy + 2, 1, 2, skin); }
+      else if (st === 'big') { R(hx - 1, hy + 4, 2, 4, skin); R(hx - 1, hy + 5, 1, 2, skD); R(hx + 11, hy + 4, 2, 4, skin); R(hx + 12, hy + 5, 1, 2, skD); }
+      else { R(hx, hy + 5, 1, 2, ec); R(hx + 11, hy + 5, 1, 2, ec); if (auE) { R(hx - 1, hy + 4, 1, 3, METD); R(hx + 12, hy + 4, 1, 3, METD); R(hx - 1, hy + 5, 1, 1, '#ff3030'); } }
+      if (human && dir === 'down') { const p = L.pierce;
+        if (p === 'ear' || p === 'ears' || p === 'studs') R(hx + 11, hy + 7, 1, 2, GOLD);
+        if (p === 'ears' || p === 'studs') R(hx, hy + 7, 1, 2, GOLD);
+        if (p === 'studs') { R(hx + 11, hy + 5, 1, 1, SILV); R(hx, hy + 5, 1, 1, SILV); } }
     };
-    const eye = (x, y) => { if (blink) R(x, y + 1, 2, 1, '#2a1a1a'); else { R(x, y, 2, 2, E); R(x, y, 1, 1, '#ffffff'); R(x + 1, y + 1, 1, 1, sh(E, -.45)); } };
+    // глаз: x,y — левый верх 2×2; inner — сторона к переносице (+1 вправо, -1 влево, 0 профиль)
+    const eye = (x, y, inner) => {
+      const sp = L.eyes || 'normal', shp = human ? sp : 'normal';
+      if (shp === 'glow') { R(x - 1, y, 1, 2, mix(skin, EC, .55)); R(x + 2, y, 1, 2, mix(skin, EC, .55)); R(x, y - 1, 2, 1, mix(skin, EC, .4)); }
+      if (blink || shp === 'closed') { R(x, y + 1, 2, 1, '#2a1a1a'); return; }
+      if (shp === 'narrow') { R(x, y + 1, 2, 1, EC); R(x, y, 2, 1, skD); return; }
+      if (shp === 'tired') { R(x, y + 1, 2, 1, EC); R(x + (inner > 0 ? 1 : 0), y + 1, 1, 1, sh(EC, .5)); R(x, y + 2, 2, 1, skD); return; }
+      if (shp === 'wide') { R(x, y, 2, 2, '#f4f0e6'); R(inner > 0 ? x + 1 : x, y, 1, 2, EC); return; }
+      if (shp === 'glow') { R(x, y, 2, 2, sh(EC, .25)); R(x, y, 1, 1, '#ffffff'); return; }
+      R(x, y, 2, 2, EC); R(x, y, 1, 1, '#ffffff'); R(x + 1, y + 1, 1, 1, sh(EC, -.45));
+      if (shp === 'stern') R(inner > 0 ? x + 1 : x, y, 1, 1, skD);
+    };
+    const brows = (side) => {
+      const b = human ? (L.brows || 'normal') : 'normal'; if (b === 'none') return;
+      const c = b === 'thin' ? mix(skin, browC, .55) : browC;
+      if (side) { // профиль: бровь над глазом hx+2
+        if (b === 'angry') { R(hx + 2, hy + 4, 1, 1, c); R(hx + 3, hy + 3, 1, 1, c); }
+        else if (b === 'raised') { R(hx + 2, hy + 3, 2, 1, c); }
+        else if (b === 'thick') { R(hx + 1, hy + 4, 3, 1, c); R(hx + 2, hy + 3, 2, 1, c); }
+        else R(hx + 2, hy + 4, 2, 1, c);
+        return;
+      }
+      if (b === 'angry') { R(hx + 3, hy + 3, 1, 1, c); R(hx + 4, hy + 4, 1, 1, c); R(hx + 7, hy + 4, 1, 1, c); R(hx + 8, hy + 3, 1, 1, c); }
+      else if (b === 'raised') { R(hx + 3, hy + 4, 1, 1, c); R(hx + 4, hy + 3, 1, 1, c); R(hx + 7, hy + 3, 1, 1, c); R(hx + 8, hy + 4, 1, 1, c); }
+      else if (b === 'thick') { R(hx + 2, hy + 4, 3, 1, c); R(hx + 7, hy + 4, 3, 1, c); R(hx + 3, hy + 3, 2, 1, c); R(hx + 7, hy + 3, 2, 1, c); }
+      else if (b === 'uni') R(hx + 3, hy + 4, 6, 1, c);
+      else { R(hx + 3, hy + 4, 2, 1, c); R(hx + 7, hy + 4, 2, 1, c); }
+    };
+    const mouth = (side) => {
+      const m = L.mouth || 'neutral', mc = sh(skin, -.38), dk2 = '#3a1010';
+      if (side) {
+        if (m === 'smile') { R(hx + 1, hy + 8, 2, 1, mc); R(hx + 3, hy + 7, 1, 1, mc); }
+        else if (m === 'grim') { R(hx + 1, hy + 8, 2, 1, mc); R(hx + 3, hy + 9, 1, 1, mc); }
+        else if (m === 'grin') { R(hx + 1, hy + 8, 3, 1, '#f4f0e6'); R(hx + 1, hy + 9, 3, 1, mc); }
+        else if (m === 'shout') R(hx + 1, hy + 8, 2, 2, dk2);
+        else if (m === 'smirk') { R(hx + 1, hy + 8, 2, 1, mc); R(hx + 3, hy + 7, 1, 1, mc); }
+        else R(hx + 1, hy + 8, 2, 1, mc);
+        return;
+      }
+      if (m === 'smile') { R(hx + 5, hy + 8, 2, 1, mc); R(hx + 4, hy + 7, 1, 1, mc); R(hx + 7, hy + 7, 1, 1, mc); }
+      else if (m === 'grim') { R(hx + 4, hy + 8, 4, 1, mc); R(hx + 3, hy + 9, 1, 1, mc); R(hx + 8, hy + 9, 1, 1, mc); }
+      else if (m === 'grin') { R(hx + 4, hy + 8, 4, 1, '#f4f0e6'); R(hx + 4, hy + 9, 4, 1, mc); R(hx + 6, hy + 8, 1, 1, '#c8c0b0'); }
+      else if (m === 'shout') { R(hx + 5, hy + 8, 2, 2, dk2); R(hx + 5, hy + 8, 2, 1, '#f4f0e6'); }
+      else if (m === 'smirk') { R(hx + 5, hy + 8, 2, 1, mc); R(hx + 7, hy + 7, 1, 1, mc); }
+      else R(hx + 5, hy + 8, 2, 1, mc);
+    };
+    const scars = (side) => {
+      const s = L.scar; if (!human || !s || s === 'none') return;
+      const P1 = (x, y) => R(x, y, 1, 1, scarC);
+      if (side) {
+        if (s === 'eye' || s === 'many') { R(hx + 3, hy + 2, 1, 7, scarC); }
+        if (s === 'cheek' || s === 'many') { P1(hx + 4, hy + 7); P1(hx + 5, hy + 8); P1(hx + 6, hy + 9); }
+        if (s === 'nose') R(hx + 1, hy + 7, 4, 1, scarC);
+        if (s === 'lip' || s === 'many') R(hx + 2, hy + 7, 1, 3, scarC);
+        if (s === 'cross') { P1(hx + 4, hy + 7); P1(hx + 6, hy + 7); P1(hx + 5, hy + 8); P1(hx + 4, hy + 9); P1(hx + 6, hy + 9); }
+        if (s === 'brow') { P1(hx + 3, hy + 2); P1(hx + 3, hy + 3); P1(hx + 4, hy + 4); }
+        if (s === 'burn') { R(hx + 3, hy + 6, 4, 4, mix(skin, '#a04a3a', .45)); P1(hx + 4, hy + 7); P1(hx + 6, hy + 9); }
+        return;
+      }
+      if (s === 'eye' || s === 'many') R(hx + 4, hy + 2, 1, 8, scarC);
+      if (s === 'cheek' || s === 'many') { P1(hx + 7, hy + 7); P1(hx + 8, hy + 8); P1(hx + 9, hy + 9); }
+      if (s === 'nose') { R(hx + 3, hy + 7, 6, 1, scarC); R(hx + 4, hy + 7, 1, 1, scarD); }
+      if (s === 'lip' || s === 'many') R(hx + 6, hy + 7, 1, 4, scarC);
+      if (s === 'cross') { P1(hx + 7, hy + 7); P1(hx + 9, hy + 7); P1(hx + 8, hy + 8); P1(hx + 7, hy + 9); P1(hx + 9, hy + 9); }
+      if (s === 'brow') { P1(hx + 8, hy + 2); P1(hx + 8, hy + 3); P1(hx + 9, hy + 4); P1(hx + 9, hy + 5); }
+      if (s === 'burn') { R(hx + 7, hy + 6, 4, 4, mix(skin, '#a04a3a', .45)); R(hx + 8, hy + 7, 2, 1, mix(skin, '#f0a090', .4)); P1(hx + 10, hy + 9); }
+    };
+    const paint = (side, phase) => { // phase 0 — под глазами, 1 — поверх
+      const p = L.paint; if (!human || !p || p === 'none') return;
+      const brand = mix(skin, '#e8a050', .65), woad = '#3a5ab8', blk = '#16141c', bone = '#e8e4dc';
+      if (phase === 0) {
+        if (p === 'stripe') { if (side) R(hx + 1, hy + 5, 6, 2, blk); else R(hx + 1, hy + 5, 10, 2, blk); }
+        if (p === 'skull') { if (side) { R(hx + 1, hy + 2, 6, 8, bone); R(hx + 1, hy + 4, 3, 3, blk); R(hx + 1, hy + 9, 4, 1, blk); } else { R(hx + 2, hy + 2, 8, 9, bone); R(hx + 2, hy + 4, 4, 3, blk); R(hx + 6, hy + 4, 4, 3, blk); R(hx + 5, hy + 7, 2, 1, blk); for (const i of [3, 5, 7]) R(hx + i, hy + 9, 1, 2, blk); } }
+        return;
+      }
+      if (side) {
+        if (p === 'brands') { R(hx + 3, hy + 7, 1, 2, brand); R(hx + 5, hy + 7, 1, 2, brand); R(hx + 4, hy + 3, 2, 1, brand); }
+        else if (p === 'studs') { R(hx + 3, hy + 3, 1, 1, SILV); R(hx + 5, hy + 3, 1, 1, SILV); }
+        else if (p === 'seal') { R(hx + 4, hy + 7, 2, 1, '#b8201e'); R(hx + 4, hy + 8, 2, 2, '#efe2b8'); }
+        else if (p === 'tears') R(hx + 2, hy + 7, 1, 2, blk);
+        else if (p === 'runes') { R(hx + 4, hy + 6, 1, 3, woad); R(hx + 5, hy + 8, 1, 1, woad); }
+        else if (p === 'star') { R(hx + 4, hy + 8, 3, 1, '#c8202a'); R(hx + 5, hy + 7, 1, 3, '#c8202a'); }
+        return;
+      }
+      if (p === 'brands') { R(hx + 5, hy + 2, 2, 1, brand); R(hx + 2, hy + 7, 1, 2, brand); R(hx + 9, hy + 7, 1, 2, brand); R(hx + 3, hy + 9, 1, 1, brand); R(hx + 8, hy + 9, 1, 1, brand); }
+      else if (p === 'studs') { for (const i of [4, 6, 8]) R(hx + i - 1, hy + 2 + (i === 6 ? 0 : 1), 1, 1, SILV); R(hx + 5, hy + 3, 1, 1, SILV); }
+      else if (p === 'seal') { R(hx + 8, hy + 7, 2, 1, '#b8201e'); R(hx + 8, hy + 8, 2, 2, '#efe2b8'); R(hx + 9, hy + 8, 1, 1, '#a89a70'); }
+      else if (p === 'tears') { R(hx + 3, hy + 7, 1, 3, blk); R(hx + 8, hy + 7, 1, 3, blk); }
+      else if (p === 'runes') { R(hx + 2, hy + 6, 1, 3, woad); R(hx + 3, hy + 8, 1, 1, woad); R(hx + 9, hy + 6, 1, 3, woad); R(hx + 8, hy + 8, 1, 1, woad); R(hx + 5, hy + 2, 2, 1, woad); }
+      else if (p === 'star') { R(hx + 7, hy + 8, 3, 1, '#c8202a'); R(hx + 8, hy + 7, 1, 3, '#c8202a'); }
+    };
+    const augs = (side) => {
+      const a = L.aug; if (!human || !a || a === 'none') return;
+      const lens = '#ff2a2a';
+      if (side) {
+        if (a === 'eyeR' || a === 'eyeL' || a === 'servitor') { R(hx + 1, hy + 4, 4, 4, MET); R(hx + 2, hy + 5, 2, 2, lens); R(hx + 2, hy + 5, 1, 1, '#ffd0d0'); }
+        if (a === 'visor') { R(hx, hy + 5, 7, 2, METD); R(hx, hy + 5, 4, 1, lens); }
+        if (a === 'plate') { R(hx + 4, hy + 2, 4, 4, MET); R(hx + 5, hy + 3, 1, 1, SILV); }
+        if (a === 'jaw' || a === 'servitor') { R(hx + 1, hy + 8, 6, 3, MET); R(hx + 1, hy + 9, 4, 1, METD); }
+        if (a === 'cables' || a === 'servitor') { R(hx + 6, hy + 7, 1, 6, '#3a3a40'); R(hx + 6, hy + 7, 1, 1, SILV); }
+        return;
+      }
+      if (a === 'eyeR' || a === 'servitor') { R(hx + 6, hy + 4, 4, 4, MET); R(hx + 7, hy + 5, 2, 2, lens); R(hx + 7, hy + 5, 1, 1, '#ffd0d0'); R(hx + 9, hy + 4, 1, 1, SILV); }
+      if (a === 'eyeL') { R(hx + 2, hy + 4, 4, 4, MET); R(hx + 3, hy + 5, 2, 2, lens); R(hx + 3, hy + 5, 1, 1, '#ffd0d0'); R(hx + 2, hy + 4, 1, 1, SILV); }
+      if (a === 'visor') { R(hx + 1, hy + 4, 10, 3, METD); R(hx + 2, hy + 5, 8, 1, lens); R(hx + 2, hy + 5, 2, 1, '#ffd0d0'); }
+      if (a === 'plate') { R(hx + 1, hy + 2, 3, 5, MET); R(hx + 2, hy + 3, 1, 1, SILV); R(hx + 2, hy + 5, 1, 1, SILV); R(hx + 1, hy + 6, 3, 1, METD); }
+      if (a === 'jaw' || a === 'servitor') { R(hx + 2, hy + 8, 8, 3, MET); R(hx + 3, hy + 9, 6, 1, METD); R(hx + 4, hy + 8, 1, 1, SILV); R(hx + 7, hy + 8, 1, 1, SILV); }
+      if (a === 'cables' || a === 'servitor') { R(hx + 1, hy + 7, 1, 6, '#3a3a40'); R(hx + 10, hy + 7, 1, 6, '#3a3a40'); R(hx + 1, hy + 7, 1, 1, SILV); R(hx + 10, hy + 7, 1, 1, SILV); }
+    };
+    const pierceFace = (side) => {
+      const p = L.pierce; if (!human || !p) return;
+      if (side) { if (p === 'nose') R(hx, hy + 7, 1, 1, GOLD); else if (p === 'brow') R(hx + 3, hy + 3, 1, 1, SILV); else if (p === 'lip') R(hx + 1, hy + 9, 1, 1, GOLD); return; }
+      if (p === 'nose') { R(hx + 6, hy + 7, 1, 1, GOLD); }
+      else if (p === 'brow') { R(hx + 9, hy + 3, 1, 1, SILV); R(hx + 9, hy + 5, 1, 1, SILV); }
+      else if (p === 'lip') R(hx + 6, hy + 9, 1, 1, GOLD);
+    };
     const hairFront = () => {
       const st = L.hair;
       if (st === 'bald') { R(hx + 3, hy + 2, 2, 1, sh(skin, .35)); return; }
@@ -403,11 +561,94 @@ const BUILTIN = {
       else if (st === 'topknot') { R(hx + 4, hy - 4, 4, 4, hc); R(hx + 5, hy - 1, 2, 1, T); R(hx + 5, hy, 2, 2, hc); R(hx + 6, hy - 4, 1, 1, hl); }
       else if (st === 'braids') { top(); R(hx - 1, hy + 4, 2, 9, hc); R(hx + 11, hy + 4, 2, 9, hc); R(hx - 1, hy + 10, 2, 1, T); R(hx + 11, hy + 10, 2, 1, T); }
       else if (st === 'bob') { R(hx + 1, hy, 10, 4, hc); R(hx, hy + 1, 2, 8, hc); R(hx + 10, hy + 1, 2, 8, hc); R(hx + 3, hy, 3, 1, hl); }
+      else if (st === 'shaved') { R(hx + 1, hy, 10, 3, stub); R(hx, hy + 1, 1, 3, stub); R(hx + 11, hy + 1, 1, 3, stub); R(hx + 3, hy + 1, 2, 1, mix(stub, '#ffffff', .2)); }
+      else if (st === 'crop') { R(hx + 2, hy - 1, 8, 1, hc); R(hx + 1, hy, 10, 2, hc); R(hx, hy + 1, 1, 3, stub); R(hx + 11, hy + 1, 1, 3, stub); R(hx + 1, hy + 2, 10, 1, mix(hc, skin, .4)); R(hx + 4, hy - 1, 3, 1, hl); }
+      else if (st === 'ponytail') { top(); R(hx + 11, hy + 3, 1, 1, '#3a2a1a'); }
+      else if (st === 'braid') { top(); R(hx + 4, hy + 3, 2, 1, hc); }
+      else if (st === 'dreads') { R(hx, hy - 1, 12, 4, hc); for (const i of [0, 2, 9, 11]) { R(hx + i, hy + 2, 1, 6 + (i % 3) * 2, hc); R(hx + i, hy + 7 + (i % 3) * 2, 1, 1, hl); } R(hx + 4, hy + 3, 1, 1, hc); R(hx + 7, hy + 3, 1, 1, hc); R(hx + 2, hy - 1, 2, 1, hl); R(hx + 7, hy - 1, 2, 1, hl); }
+      else if (st === 'side') { R(hx + 1, hy, 10, 3, hc); R(hx + 1, hy + 3, 6, 1, hc); R(hx + 1, hy + 4, 2, 2, hc); R(hx, hy + 1, 1, 5, hc); R(hx + 11, hy + 1, 1, 3, hc); R(hx + 6, hy, 4, 1, hl); }
+      else if (st === 'slick') { R(hx + 1, hy, 10, 2, hc); R(hx, hy + 1, 1, 3, hc); R(hx + 11, hy + 1, 1, 3, hc); R(hx + 2, hy + 2, 8, 1, hd); R(hx + 3, hy, 1, 2, hl); R(hx + 7, hy, 1, 2, hl); }
+      else if (st === 'mullet') { top(); R(hx, hy + 1, 1, 8, hc); R(hx + 11, hy + 1, 1, 8, hc); R(hx + 3, hy + 3, 5, 1, hc); }
+      else if (st === 'tonsure') { R(hx, hy + 2, 2, 4, hc); R(hx + 10, hy + 2, 2, 4, hc); R(hx + 1, hy + 1, 2, 1, hc); R(hx + 9, hy + 1, 2, 1, hc); R(hx + 4, hy, 4, 1, hc); R(hx + 4, hy + 2, 3, 1, sh(skin, .3)); }
+      else if (st === 'psyker') { R(hx, hy - 1, 12, 4, hc); R(hx - 1, hy + 1, 2, 13, hc); R(hx + 11, hy + 1, 2, 13, hc); R(hx + 2, hy - 3, 1, 2, hl); R(hx + 6, hy - 4, 1, 3, hl); R(hx + 9, hy - 3, 1, 2, hl); R(hx + 1, hy + 3, 2, 1, hc); R(hx + 9, hy + 3, 2, 1, hc); R(hx + 3, hy - 1, 6, 1, hl); R(hx - 1, hy + 4, 1, 8, hl); }
+      else if (st === 'wolfbraids') { R(hx, hy - 1, 12, 4, hc); R(hx + 2, hy - 2, 2, 1, hc); R(hx + 8, hy - 2, 2, 1, hc); R(hx + 2, hy + 3, 2, 1, hc); R(hx + 8, hy + 3, 2, 1, hc); for (const x of [hx - 1, hx + 1, hx + 10, hx + 12]) { R(x, hy + 2, 1, 10, hc); R(x, hy + 7, 1, 1, '#e8e0c0'); R(x, hy + 11, 1, 1, GOLD); } R(hx + 3, hy - 1, 3, 1, hl); }
+    };
+    const hairUp = () => {
+      const st = L.hair;
+      if (st === 'bald') { R(hx + 4, hy + 2, 2, 1, sh(skin, .3)); return; }
+      if (st === 'mohawk') { R(hx + 5, hy - 3, 2, 12, hc); return; }
+      if (st === 'topknot') { R(hx + 4, hy - 4, 4, 5, hc); R(hx + 5, hy + 1, 2, 9, hc); R(hx + 5, hy - 1, 2, 1, T); return; }
+      if (st === 'shaved') { RR(hx, hy, 12, 8, stub); return; }
+      if (st === 'crop') { RR(hx + 1, hy - 1, 10, 5, hc); R(hx, hy + 3, 12, 4, stub); R(hx + 3, hy - 1, 3, 1, hl); return; }
+      if (st === 'tonsure') { RR(hx, hy + 1, 12, 8, hc); R(hx + 3, hy + 1, 6, 3, skin); R(hx + 4, hy + 1, 2, 1, sh(skin, .3)); R(hx + 9, hy + 2, 2, 6, hd); return; }
+      if (st === 'psyker') { RR(hx - 1, hy - 1, 14, 16, hc); R(hx + 10, hy, 2, 14, hd); for (const i of [1, 5, 9]) R(hx + i, hy - 3, 1, 2, hl); R(hx + 3, hy, 3, 13, hl); return; }
+      const h = ['short', 'side', 'slick', 'ponytail', 'braid', 'mullet'].includes(st) ? 8 : st === 'dreads' ? 6 : 10;
+      RR(hx, hy, 12, h, hc); R(hx + 9, hy + 1, 2, h - 3, hd);
+      if (st === 'long') R(hx, hy + 6, 12, 9, hc), R(hx + 1, hy + 14, 10, 1, hd);
+      if (st === 'wild') { R(hx - 1, hy - 2, 2, 3, hc); R(hx + 3, hy - 3, 2, 3, hc); R(hx + 7, hy - 3, 2, 3, hc); R(hx + 10, hy - 2, 3, 3, hc); R(hx - 1, hy + 4, 14, 5, hc); }
+      if (st === 'braids') { R(hx + 1, hy + 8, 2, 8, hc); R(hx + 9, hy + 8, 2, 8, hc); }
+      if (st === 'ponytail') { R(hx + 5, hy + 7, 2, 1, '#3a2a1a'); R(hx + 5, hy + 8, 2, 6, hc); R(hx + 5, hy + 13, 2, 1, hd); }
+      if (st === 'braid') { R(hx + 5, hy + 8, 2, 10, hc); for (let j = 0; j < 10; j += 2) R(hx + 5 + ((j >> 1) & 1), hy + 8 + j, 1, 1, hd); R(hx + 5, hy + 15, 2, 1, GOLD); }
+      if (st === 'mullet') { R(hx + 1, hy + 7, 10, 7, hc); R(hx + 2, hy + 13, 8, 1, hd); }
+      if (st === 'dreads') for (let i = 0; i < 12; i += 2) { R(hx + i, hy + 5, 1, 7 + (i % 4), hc); R(hx + i, hy + 11 + (i % 4), 1, 1, hl); }
+      if (st === 'wolfbraids') for (const i of [1, 5, 9]) { R(hx + i, hy + 9, 2, 7, hc); R(hx + i, hy + 12, 2, 1, '#e8e0c0'); R(hx + i, hy + 15, 2, 1, GOLD); }
+      if (st === 'slick') { R(hx + 3, hy, 1, 7, hl); R(hx + 7, hy, 1, 7, hl); }
+      R(hx + 3, hy, 3, 1, hl);
+    };
+    const hairSide = () => {
+      const st = L.hair;
+      if (st === 'bald') { R(hx + 5, hy + 2, 2, 1, sh(skin, .3)); return; }
+      if (st === 'mohawk') { R(hx + 3, hy - 3, 6, 3, hc); R(hx + 8, hy, 2, 3, hc); return; }
+      if (st === 'topknot') { R(hx + 5, hy - 4, 4, 4, hc); R(hx + 6, hy - 1, 2, 1, T); R(hx + 6, hy, 6, 3, hc); R(hx + 10, hy + 3, 2, 2, hc); return; }
+      if (st === 'shaved') { R(hx + 1, hy, 10, 2, stub); R(hx + 7, hy + 2, 5, 4, stub); return; }
+      if (st === 'crop') { R(hx + 2, hy - 1, 9, 3, hc); R(hx + 7, hy + 2, 5, 3, stub); R(hx + 3, hy - 1, 3, 1, hl); return; }
+      if (st === 'tonsure') { R(hx + 6, hy + 2, 6, 5, hc); R(hx + 1, hy + 2, 2, 2, hc); R(hx + 3, hy + 1, 3, 1, sh(skin, .3)); return; }
+      if (st === 'slick') { R(hx + 1, hy, 11, 2, hc); R(hx + 6, hy + 1, 6, 6, hc); R(hx + 11, hy + 4, 1, 3, hc); R(hx + 2, hy, 8, 1, hl); return; }
+      if (st === 'psyker') { R(hx, hy - 1, 12, 4, hc); R(hx + 5, hy + 1, 8, 14, hc); R(hx + 1, hy + 3, 2, 1, hc); R(hx + 2, hy - 3, 1, 2, hl); R(hx + 7, hy - 4, 1, 3, hl); R(hx + 11, hy - 2, 1, 2, hl); R(hx + 7, hy + 3, 2, 11, hl); return; }
+      if (st === 'dreads') { R(hx, hy - 1, 12, 4, hc); for (let i = 5; i < 13; i += 2) { R(hx + i, hy + 2, 1, 8 + (i % 3), hc); R(hx + i, hy + 9 + (i % 3), 1, 1, hl); } R(hx + 1, hy + 3, 1, 2, hc); return; }
+      const h = ['short', 'side', 'ponytail', 'braid', 'mullet'].includes(st) ? 6 : 9;
+      R(hx + 1, hy, 10, 3, hc); R(hx + 6, hy + 1, 6, h, hc); R(hx + 1, hy + 3, 2, 1, hc);
+      if (st === 'long') R(hx + 7, hy + 6, 5, 8, hc);
+      if (st === 'wild') { R(hx, hy - 2, 2, 3, hc); R(hx + 4, hy - 3, 2, 2, hc); R(hx + 8, hy - 2, 3, 3, hc); R(hx + 11, hy + 1, 2, 7, hc); R(hx, hy + 2, 1, 3, hc); }
+      if (st === 'braids') R(hx + 8, hy + 6, 2, 9, hc), R(hx + 8, hy + 12, 2, 1, T);
+      if (st === 'bob') R(hx + 7, hy + 4, 5, 6, hc);
+      if (st === 'side') { R(hx + 1, hy + 3, 3, 2, hc); }
+      if (st === 'ponytail') { R(hx + 11, hy + 3, 2, 2, '#3a2a1a'); R(hx + 12, hy + 4, 2, 7, hc); R(hx + 13, hy + 10, 1, 2, hd); }
+      if (st === 'braid') { R(hx + 10, hy + 6, 2, 10, hc); for (let j = 0; j < 10; j += 2) R(hx + 10 + ((j >> 1) & 1), hy + 6 + j, 1, 1, hd); R(hx + 10, hy + 13, 2, 1, GOLD); }
+      if (st === 'mullet') R(hx + 8, hy + 6, 4, 8, hc);
+      if (st === 'wolfbraids') { R(hx + 2, hy - 2, 3, 1, hc); for (const x of [hx + 7, hx + 10]) { R(x, hy + 6, 2, 9, hc); R(x, hy + 10, 2, 1, '#e8e0c0'); R(x, hy + 14, 2, 1, GOLD); } }
+      R(hx + 3, hy, 3, 1, hl);
     };
     const beard = (side) => {
-      if (L.beard === 'goatee') { if (side) { R(hx + 1, hy + 8, 2, 3, hc); } else { R(hx + 4, hy + 8, 4, 1, hc); R(hx + 5, hy + 9, 2, 3, hc); } }
-      else if (L.beard === 'moustache') { if (side) { R(hx + 1, hy + 7, 2, 1, hc); R(hx + 1, hy + 8, 1, 4, hc); } else { R(hx + 3, hy + 7, 6, 1, hc); R(hx + 3, hy + 8, 1, 4, hc); R(hx + 8, hy + 8, 1, 4, hc); } }
-      else if (L.beard === 'full') { if (side) { R(hx + 1, hy + 7, 6, 4, hc); R(hx + 1, hy + 11, 3, 2, hc); } else { R(hx + 1, hy + 6, 1, 4, hc); R(hx + 10, hy + 6, 1, 4, hc); R(hx + 2, hy + 7, 8, 4, hc); R(hx + 4, hy + 11, 4, 2, hc); R(hx + 5, hy + 8, 2, 1, sh(skin, -.4)); R(hx + 3, hy + 9, 1, 1, hl); } }
+      const b = L.beard; if (!b || b === 'none') return;
+      const full = () => { if (side) { R(hx + 1, hy + 7, 6, 4, bc); R(hx + 1, hy + 11, 3, 2, bc); } else { R(hx + 1, hy + 6, 1, 4, bc); R(hx + 10, hy + 6, 1, 4, bc); R(hx + 2, hy + 7, 8, 4, bc); R(hx + 4, hy + 11, 4, 2, bc); R(hx + 5, hy + 8, 2, 1, sh(skin, -.4)); R(hx + 3, hy + 9, 1, 1, bl); } };
+      if (side) {
+        if (b === 'goatee') R(hx + 1, hy + 8, 2, 3, bc);
+        else if (b === 'moustache') { R(hx + 1, hy + 7, 2, 1, bc); R(hx + 1, hy + 8, 1, 4, bc); }
+        else if (b === 'full') full();
+        else if (b === 'stubble') { R(hx + 1, hy + 9, 6, 2, bstub); R(hx + 6, hy + 6, 1, 3, bstub); R(hx + 1, hy + 7, 2, 1, bstub); }
+        else if (b === 'long') { full(); R(hx + 1, hy + 12, 4, 4, bc); R(hx + 2, hy + 16, 2, 2, bd); }
+        else if (b === 'braided') { full(); R(hx + 2, hy + 12, 2, 7, bc); for (let j = 0; j < 7; j += 2) R(hx + 2 + ((j >> 1) & 1), hy + 12 + j, 1, 1, bd); R(hx + 2, hy + 16, 2, 1, GOLD); }
+        else if (b === 'forked') { full(); R(hx + 1, hy + 12, 2, 4, bc); R(hx + 4, hy + 12, 2, 3, bc); }
+        else if (b === 'wolf') { R(hx, hy + 7, 8, 6, bc); R(hx + 7, hy + 4, 2, 5, bc); R(hx, hy + 13, 6, 3, bc); R(hx + 1, hy + 16, 3, 2, bd); R(hx + 1, hy + 8, 2, 1, sh(skin, -.4)); R(hx + 2, hy + 11, 1, 1, bl); R(hx + 3, hy + 14, 1, 1, '#e8e0c0'); }
+        else if (b === 'chops') { R(hx + 5, hy + 5, 3, 5, bc); R(hx + 1, hy + 7, 3, 1, bc); }
+        else if (b === 'walrus') { R(hx, hy + 7, 4, 2, bc); R(hx, hy + 9, 1, 1, bd); }
+        else if (b === 'handlebar') { R(hx + 1, hy + 7, 3, 1, bc); R(hx, hy + 6, 1, 1, bc); }
+        else if (b === 'chinstrap') { R(hx + 6, hy + 5, 1, 5, bc); R(hx + 1, hy + 10, 6, 1, bc); }
+        return;
+      }
+      if (b === 'goatee') { R(hx + 4, hy + 8, 4, 1, bc); R(hx + 5, hy + 9, 2, 3, bc); }
+      else if (b === 'moustache') { R(hx + 3, hy + 7, 6, 1, bc); R(hx + 3, hy + 8, 1, 4, bc); R(hx + 8, hy + 8, 1, 4, bc); }
+      else if (b === 'full') full();
+      else if (b === 'stubble') { R(hx + 2, hy + 9, 8, 2, bstub); R(hx + 2, hy + 7, 1, 2, bstub); R(hx + 9, hy + 7, 1, 2, bstub); R(hx + 4, hy + 7, 4, 1, bstub); }
+      else if (b === 'long') { full(); R(hx + 3, hy + 11, 6, 4, bc); R(hx + 4, hy + 15, 4, 2, bc); R(hx + 5, hy + 17, 2, 1, bd); R(hx + 4, hy + 12, 1, 3, bl); }
+      else if (b === 'braided') { full(); R(hx + 5, hy + 12, 2, 7, bc); for (let j = 0; j < 7; j += 2) R(hx + 5 + ((j >> 1) & 1), hy + 12 + j, 1, 1, bd); R(hx + 5, hy + 16, 2, 1, GOLD); }
+      else if (b === 'forked') { full(); R(hx + 3, hy + 12, 2, 4, bc); R(hx + 7, hy + 12, 2, 4, bc); R(hx + 3, hy + 15, 1, 1, bd); R(hx + 8, hy + 15, 1, 1, bd); }
+      else if (b === 'wolf') { R(hx, hy + 4, 1, 7, bc); R(hx + 11, hy + 4, 1, 7, bc); R(hx + 1, hy + 7, 10, 6, bc); R(hx + 2, hy + 13, 8, 3, bc); R(hx + 3, hy + 16, 6, 2, bc); R(hx + 4, hy + 18, 4, 1, bd); R(hx + 5, hy + 8, 2, 1, sh(skin, -.4)); R(hx + 2, hy + 7, 2, 1, bl); R(hx + 8, hy + 7, 2, 1, bl); R(hx + 3, hy + 14, 1, 1, '#e8e0c0'); R(hx + 8, hy + 14, 1, 1, '#e8e0c0'); R(hx + 6, hy + 11, 1, 3, bd); }
+      else if (b === 'chops') { R(hx + 1, hy + 5, 2, 5, bc); R(hx + 9, hy + 5, 2, 5, bc); R(hx + 3, hy + 9, 1, 1, bc); R(hx + 8, hy + 9, 1, 1, bc); R(hx + 3, hy + 7, 6, 1, bc); }
+      else if (b === 'walrus') { R(hx + 3, hy + 7, 6, 2, bc); R(hx + 2, hy + 8, 1, 2, bc); R(hx + 9, hy + 8, 1, 2, bc); R(hx + 4, hy + 7, 1, 1, bl); }
+      else if (b === 'handlebar') { R(hx + 4, hy + 7, 4, 1, bc); R(hx + 2, hy + 7, 2, 1, bc); R(hx + 8, hy + 7, 2, 1, bc); R(hx + 1, hy + 6, 1, 1, bc); R(hx + 10, hy + 6, 1, 1, bc); }
+      else if (b === 'chinstrap') { R(hx + 1, hy + 5, 1, 5, bc); R(hx + 10, hy + 5, 1, 5, bc); R(hx + 2, hy + 10, 8, 1, bc); R(hx + 2, hy + 9, 1, 1, bc); R(hx + 9, hy + 9, 1, 1, bc); }
     };
     const horns = () => {
       const k = ft.horns; if (!k) return;
@@ -425,48 +666,31 @@ const BUILTIN = {
       if (dir === 'down') {
         hairBack();
         RR(hx + 1, hy + 1, 10, 10, skin); R(hx + 2, hy + 10, 8, 1, skD);
-        if (!isD) { R(hx + 2, hy + 8, 1, 1, mix(skin, '#ff6a6a', .35)); R(hx + 9, hy + 8, 1, 1, mix(skin, '#ff6a6a', .35)); }
+        if (!isD && L.paint !== 'skull') { R(hx + 2, hy + 8, 1, 1, mix(skin, '#ff6a6a', .35)); R(hx + 9, hy + 8, 1, 1, mix(skin, '#ff6a6a', .35)); }
+        paint(false, 0); scars(false);
         if (ft.oneEye) { if (blink) R(hx + 5, hy + 5, 3, 1, '#2a1a1a'); else { R(hx + 4, hy + 4, 4, 3, '#f4f0c0'); R(hx + 5, hy + 4, 2, 3, E); R(hx + 5, hy + 5, 1, 1, '#1a1a1a'); } }
-        else { eye(hx + 3, hy + 5); eye(hx + 7, hy + 5); R(hx + 3, hy + 4, 2, 1, L.body === 'ork' || isD ? sh(skin, -.5) : hd); R(hx + 7, hy + 4, 2, 1, L.body === 'ork' || isD ? sh(skin, -.5) : hd); }
+        else { eye(hx + 3, hy + 5, 1); eye(hx + 7, hy + 5, -1); brows(false); }
+        paint(false, 1);
         if (L.body === 'ork') { R(hx + 4, hy + 9, 4, 1, '#3a1a10'); R(hx + 3, hy + 8, 1, 2, '#f0ead0'); R(hx + 8, hy + 8, 1, 2, '#f0ead0'); }
         else if (ft.fangs || dk === 'plaguebearer') { R(hx + 3, hy + 8, 6, 2, '#2a0a0a'); R(hx + 3, hy + 8, 1, 1, '#fff'); R(hx + 5, hy + 8, 1, 1, '#fff'); R(hx + 8, hy + 8, 1, 1, '#fff'); R(hx + 4, hy + 9, 1, 1, '#fff'); R(hx + 7, hy + 9, 1, 1, '#fff'); }
         else if (dk === 'horror') { R(hx + 2, hy + 8, 8, 2, '#3a0a2a'); R(hx + 3, hy + 8, 1, 1, '#fff'); R(hx + 6, hy + 8, 1, 1, '#fff'); R(hx + 8, hy + 8, 1, 1, '#fff'); }
         else if (dk === 'daemonette') R(hx + 5, hy + 8, 2, 1, '#c03a8a');
-        else R(hx + 5, hy + 8, 2, 1, sh(skin, -.38));
-        beard(false); ears(false); hairFront(); horns();
+        else mouth(false);
+        augs(false); if (human) beard(false); pierceFace(false); ears(false); hairFront(); horns();
       } else if (dir === 'up') {
         RR(hx + 1, hy + 1, 10, 10, skin); ears(false);
-        const st = L.hair;
-        if (st === 'bald') { R(hx + 4, hy + 2, 2, 1, sh(skin, .3)); }
-        else if (st === 'mohawk') { R(hx + 5, hy - 3, 2, 12, hc); }
-        else {
-          if (st !== 'topknot') { RR(hx, hy, 12, st === 'short' ? 8 : 10, hc); R(hx + 9, hy + 1, 2, 7, hd); }
-          if (st === 'long') R(hx, hy + 6, 12, 9, hc), R(hx + 1, hy + 14, 10, 1, hd);
-          if (st === 'wild') { R(hx - 1, hy - 2, 2, 3, hc); R(hx + 3, hy - 3, 2, 3, hc); R(hx + 7, hy - 3, 2, 3, hc); R(hx + 10, hy - 2, 3, 3, hc); R(hx - 1, hy + 4, 14, 5, hc); }
-          if (st === 'braids') { R(hx + 1, hy + 8, 2, 8, hc); R(hx + 9, hy + 8, 2, 8, hc); }
-          if (st === 'topknot') { R(hx + 4, hy - 4, 4, 5, hc); R(hx + 5, hy + 1, 2, 9, hc); R(hx + 5, hy - 1, 2, 1, T); }
-          if (st !== 'topknot') R(hx + 3, hy, 3, 1, hl);
-        }
-        horns();
+        if (human && L.beard === 'wolf') { R(hx - 1, hy + 7, 1, 4, bc); R(hx + 12, hy + 7, 1, 4, bc); }
+        hairUp(); horns();
       } else {
         RR(hx + 1, hy + 1, 10, 10, skin); R(hx + 2, hy + 10, 7, 1, skD);
-        if (ft.oneEye) { R(hx + 2, hy + 4, 3, 3, '#f4f0c0'); R(hx + 2, hy + 4, 2, 3, E); } else { eye(hx + 2, hy + 5); R(hx + 2, hy + 4, 2, 1, isD ? sh(skin, -.5) : hd); }
+        paint(true, 0); scars(true);
+        if (ft.oneEye) { R(hx + 2, hy + 4, 3, 3, '#f4f0c0'); R(hx + 2, hy + 4, 2, 3, E); } else { eye(hx + 2, hy + 5, 0); brows(true); }
+        paint(true, 1);
         if (L.body === 'ork') { R(hx + 1, hy + 9, 3, 1, '#3a1a10'); R(hx + 2, hy + 8, 1, 2, '#f0ead0'); }
         else if (ft.fangs || dk === 'horror' || dk === 'plaguebearer') { R(hx + 1, hy + 8, 4, 2, '#2a0a0a'); R(hx + 2, hy + 8, 1, 1, '#fff'); R(hx + 4, hy + 9, 1, 1, '#fff'); }
-        else R(hx + 1, hy + 8, 2, 1, sh(skin, -.38));
-        const st = L.hair;
-        if (st === 'bald') R(hx + 5, hy + 2, 2, 1, sh(skin, .3));
-        else if (st === 'mohawk') { R(hx + 3, hy - 3, 6, 3, hc); R(hx + 8, hy, 2, 3, hc); }
-        else if (st === 'topknot') { R(hx + 5, hy - 4, 4, 4, hc); R(hx + 6, hy - 1, 2, 1, T); R(hx + 6, hy, 6, 3, hc); R(hx + 10, hy + 3, 2, 2, hc); }
-        else {
-          R(hx + 1, hy, 10, 3, hc); R(hx + 6, hy + 1, 6, st === 'short' ? 6 : 9, hc); R(hx + 1, hy + 3, 2, 1, hc);
-          if (st === 'long') R(hx + 7, hy + 6, 5, 8, hc);
-          if (st === 'wild') { R(hx, hy - 2, 2, 3, hc); R(hx + 4, hy - 3, 2, 2, hc); R(hx + 8, hy - 2, 3, 3, hc); R(hx + 11, hy + 1, 2, 7, hc); R(hx, hy + 2, 1, 3, hc); }
-          if (st === 'braids') R(hx + 8, hy + 6, 2, 9, hc), R(hx + 8, hy + 12, 2, 1, T);
-          if (st === 'bob') R(hx + 7, hy + 4, 5, 6, hc);
-          R(hx + 3, hy, 3, 1, hl);
-        }
-        beard(true); ears(true); horns();
+        else if (isD) R(hx + 1, hy + 8, 2, 1, sh(skin, -.38));
+        else mouth(true);
+        augs(true); hairSide(); if (human) beard(true); pierceFace(true); ears(true); horns();
       }
     };
     const helmOverlay = () => {
@@ -554,7 +778,7 @@ const BUILTIN = {
     if (dir === 'down') { banner(); cloakBack(); pack(); legs(); robe(); torso(); tabard(); seals(); pelt(); arms(); pads(); weapon(); head(); }
     else if (dir === 'up') { weapon(); legs(); robe(); torso(); arms(); pack(); cloakFront(); pads(); pelt(); head(); banner(); }
     else { banner(); cloakBack(); pack(); legs(); robe(); torso(); tabard(); seals(); pelt(); pads(); head(); arms(); weapon(); }
-    return { tip, hands };
+    return { tip, hands, head: [hx, hy] };
   }
 
   const OUT = '#16101e';
@@ -575,10 +799,10 @@ const BUILTIN = {
     const raw = document.createElement('canvas'); raw.width = SW; raw.height = SH; const g = raw.getContext('2d');
     const d = dir === 'right' ? 'left' : dir;
     const r = drawFigure(g, L, d, pose, frame, blink);
-    let tip = r.tip, hands = r.hands;
+    let tip = r.tip, hands = r.hands, head = r.head;
     let c = outline(raw);
-    if (dir === 'right') { const m = document.createElement('canvas'); m.width = SW; m.height = SH; const mg = m.getContext('2d'); mg.translate(SW, 0); mg.scale(-1, 1); mg.drawImage(c, 0, 0); c = m; if (tip) tip = [SW - tip[0], tip[1]]; if (hands) hands = hands.map(h => [SW - h[0] - 3, h[1]]); }
-    s = { c, ax: CX, ay: FLN, tip, hands, top: topRow(c) }; cache.set(key, s); return s;
+    if (dir === 'right') { const m = document.createElement('canvas'); m.width = SW; m.height = SH; const mg = m.getContext('2d'); mg.translate(SW, 0); mg.scale(-1, 1); mg.drawImage(c, 0, 0); c = m; if (tip) tip = [SW - tip[0], tip[1]]; if (hands) hands = hands.map(h => [SW - h[0] - 3, h[1]]); head = [SW - head[0] - 12, head[1]]; }
+    s = { c, ax: CX, ay: FLN, tip, hands, head, top: topRow(c) }; cache.set(key, s); return s;
   }
   function prepLook(look) { const L = normLook(look); Object.defineProperty(L, '__n', { value: true, enumerable: false }); return L; }
 
@@ -614,5 +838,5 @@ const BUILTIN = {
     return (emoCache[id] = c);
   }
 
-  return { ARCH, FACTIONS: FL, SIDES, resolveFaction, featOf, PAL, defaultLook, normLook, prepLook, sprite, skull, EMO, EMO_ORDER, emoIcon, sh, mix, hexRGB, OUT, SW, SH, migrateExt: EXT && typeof EXT.migrate === 'function' ? EXT.migrate.bind(EXT) : null, validExt: EXT && typeof EXT.valid === 'function' ? EXT.valid.bind(EXT) : null };
+  return { FACE, FACE_DEF, ARCH, FACTIONS: FL, SIDES, resolveFaction, featOf, PAL, defaultLook, normLook, prepLook, sprite, skull, EMO, EMO_ORDER, emoIcon, sh, mix, hexRGB, OUT, SW, SH, migrateExt: EXT && typeof EXT.migrate === 'function' ? EXT.migrate.bind(EXT) : null, validExt: EXT && typeof EXT.valid === 'function' ? EXT.valid.bind(EXT) : null };
 })();

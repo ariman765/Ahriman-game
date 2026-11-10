@@ -13,12 +13,14 @@
   // ---------- образ: проверка чужих данных ----------
   const ENUM = {
     body: ['astartes', 'bloated', 'human', 'slim', 'ork', 'daemon'], helm: ['mk7', 'beak', 'mk3', 'crest', 'horned', 'batwing', 'plague', 'wolf', 'eldar', 'hood', 'cap', 'hat', 'ork'],
-    hair: ['short', 'long', 'wild', 'mohawk', 'topknot', 'braids', 'bob', 'bald'], beard: ['none', 'goatee', 'moustache', 'full'], ears: ['human', 'pointed'],
+    hair: A.FACE.hair, beard: A.FACE.beard, ears: A.FACE.ears,
+    eyes: A.FACE.eyes, brows: A.FACE.brows, mouth: A.FACE.mouth, scar: A.FACE.scar, paint: A.FACE.paint, aug: A.FACE.aug, pierce: A.FACE.pierce,
     pads: ['round', 'square', 'spiked', 'small', 'none'], cloak: ['none', 'cloak', 'tabard', 'pelt'],
     weapon: ['none', 'staff', 'bolter', 'flamer', 'lasgun', 'chainsword', 'sword', 'axe', 'hammer', 'claws', 'scythe', 'book'],
   };
   const ACC = ['pack', 'jump', 'seals', 'banner', 'plume', 'skull'];
   const COLK = ['hairC', 'skin', 'prim', 'sec', 'trim', 'cloakC', 'eye'];
+  const OPTCOL = ['eyeC', 'beardC']; // необязательные цвета: нет — значит «как линзы» / «как волосы»
   const isCol = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
   // Образ v2: {side, faction, arch, ...}. Старые образы (arch: 'tsons'/'marine'/'wolf'…, legion: 'ts') переводятся мягко.
   function cleanLook(raw) {
@@ -29,6 +31,7 @@
     const L = A.defaultLook(fid);
     for (const k in ENUM) if (ENUM[k].includes(r[k])) L[k] = r[k];
     for (const k of COLK) if (isCol(r[k])) L[k] = r[k].toLowerCase();
+    for (const k of OPTCOL) { if (isCol(r[k])) L[k] = r[k].toLowerCase(); else if (k in r) L[k] = ''; }
     if (typeof r.helmet === 'boolean') L.helmet = r.helmet;
     if (typeof r.robe === 'boolean') L.robe = r.robe;
     if (typeof r.heraldry === 'boolean') L.heraldry = r.heraldry;
@@ -594,19 +597,31 @@
   const OPT = {
     body: [['astartes', 'Астартес'], ['bloated', 'Раздутое (Нургл)'], ['human', 'Человек'], ['slim', 'Изящное'], ['ork', 'Орочье']],
     helm: [['mk7', 'Марк VII'], ['beak', 'Марк VI «клюв»'], ['mk3', 'Марк III «Железный»'], ['crest', 'Гребень Тысячи Сынов'], ['horned', 'Рогатый'], ['batwing', 'Крылья летучей мыши'], ['plague', 'Чумной'], ['wolf', 'Волчий'], ['eldar', 'Аэльдари'], ['hood', 'Капюшон Механикус'], ['cap', 'Каска гвардии'], ['hat', 'Шляпа инквизитора'], ['ork', 'Орочий котелок']],
-    hair: [['short', 'Короткие'], ['long', 'Длинные'], ['wild', 'Взъерошенные'], ['mohawk', 'Ирокез'], ['topknot', 'Пучок'], ['braids', 'Косы'], ['bob', 'Каре'], ['bald', 'Лысый']],
-    beard: [['none', 'Нет'], ['goatee', 'Бородка'], ['moustache', 'Усы'], ['full', 'Борода']],
-    ears: [['human', 'Обычные'], ['pointed', 'Острые']],
+    hair: [['bald', 'Лысый'], ['shaved', 'Бритый'], ['crop', 'Ёжик'], ['short', 'Короткие'], ['side', 'Набок'], ['slick', 'Зализанные'], ['mohawk', 'Ирокез'], ['topknot', 'Пучок'], ['tonsure', 'Тонзура воина'], ['bob', 'Каре'], ['mullet', 'Маллет'], ['ponytail', 'Хвост'], ['braid', 'Коса'], ['braids', 'Две косы'], ['wolfbraids', 'Волчьи косы'], ['dreads', 'Дреды'], ['wild', 'Взъерошенные'], ['long', 'Длинные'], ['psyker', 'Грива псайкера']],
+    beard: [['none', 'Нет'], ['stubble', 'Щетина'], ['goatee', 'Бородка'], ['moustache', 'Подкова'], ['handlebar', 'Усы-руль'], ['walrus', 'Моржовые усы'], ['chops', 'Бакенбарды'], ['chinstrap', 'Шкиперская'], ['full', 'Борода'], ['long', 'Длинная'], ['braided', 'С косой'], ['forked', 'Раздвоенная'], ['wolf', 'Волчья (Фенрис)']],
+    ears: [['human', 'Обычные'], ['pointed', 'Острые'], ['big', 'Большие'], ['aug', 'Аугметика']],
+    eyes: [['normal', 'Обычные'], ['narrow', 'Прищур'], ['wide', 'Широко открытые'], ['stern', 'Суровые'], ['tired', 'Усталые'], ['closed', 'Закрытые'], ['glow', 'Сияние варпа']],
+    brows: [['normal', 'Обычные'], ['thick', 'Густые'], ['thin', 'Тонкие'], ['angry', 'Нахмуренные'], ['raised', 'Домиком'], ['uni', 'Сросшиеся'], ['none', 'Нет']],
+    mouth: [['neutral', 'Спокойный'], ['smile', 'Улыбка'], ['smirk', 'Ухмылка'], ['grim', 'Мрачный'], ['grin', 'Оскал'], ['shout', 'Боевой клич']],
+    scar: [['none', 'Нет'], ['eye', 'Через глаз'], ['cheek', 'На щеке'], ['nose', 'Через нос'], ['lip', 'Губа'], ['brow', 'Рассечённая бровь'], ['cross', 'Крест'], ['burn', 'Ожог'], ['many', 'Ветеран (много)']],
+    paint: [['none', 'Нет'], ['brands', 'Клейма (Саламандры)'], ['studs', 'Штифты выслуги'], ['seal', 'Печать чистоты'], ['stripe', 'Полоса через глаза'], ['tears', 'Чёрные слёзы'], ['skull', 'Череп'], ['runes', 'Руны Фенриса'], ['star', 'Звезда Хаоса']],
+    aug: [['none', 'Нет'], ['eyeR', 'Бионический глаз'], ['eyeL', 'Бионический глаз (другой)'], ['visor', 'Визор'], ['plate', 'Черепная пластина'], ['jaw', 'Железная челюсть'], ['cables', 'Кабели'], ['servitor', 'Сервитор (всё сразу)']],
+    pierce: [['none', 'Нет'], ['ear', 'Серьга'], ['ears', 'Две серьги'], ['studs', 'Гвоздики в ушах'], ['nose', 'Кольцо в носу'], ['brow', 'Бровь'], ['lip', 'Губа']],
     pads: [['round', 'Круглые'], ['square', 'Прямые'], ['spiked', 'С шипами'], ['small', 'Малые'], ['none', 'Без']],
     cloak: [['none', 'Нет'], ['cloak', 'Плащ'], ['tabard', 'Табард'], ['pelt', 'Волчья шкура']],
     weapon: [['staff', 'Психосиловой посох'], ['bolter', 'Болтер'], ['flamer', 'Огнемёт'], ['lasgun', 'Лазган'], ['chainsword', 'Цепной меч'], ['sword', 'Силовой меч'], ['axe', 'Силовой топор'], ['hammer', 'Громовой молот'], ['claws', 'Молниевые когти'], ['scythe', 'Коса'], ['book', 'Книга'], ['none', 'Пустые руки']],
   };
   const ACC_N = [['pack', 'Силовой ранец'], ['jump', 'Прыжковый ранец'], ['seals', 'Печати чистоты'], ['banner', 'Знамя'], ['plume', 'Плюмаж'], ['skull', 'Сервочереп']];
   const SECTIONS = [
-    ['Голова', [['helmet', 'Шлем', 'bool'], ['helm', 'Стиль шлема', 'enum'], ['hair', 'Причёска', 'enum'], ['hairC', 'Цвет волос', 'col', 'hair'], ['beard', 'Борода', 'enum'], ['ears', 'Уши', 'enum'], ['skin', 'Кожа', 'col', 'skin'], ['eye', 'Глаза и линзы', 'col', 'glow']]],
+    ['Голова', [['helmet', 'Шлем', 'bool'], ['helm', 'Стиль шлема', 'enum'], ['eye', 'Линзы шлема', 'col', 'glow']]],
+    ['Лицо (видно без шлема)', [['skin', 'Кожа', 'col', 'skin'], ['eyes', 'Взгляд', 'enum'], ['eyeC', 'Цвет глаз', 'ocol', 'eyes', 'eye', 'Как линзы'], ['brows', 'Брови', 'enum'], ['mouth', 'Рот', 'enum'], ['ears', 'Уши', 'enum'], ['scar', 'Шрамы', 'enum'], ['paint', 'Татуировки и раскраска', 'enum'], ['aug', 'Аугметика', 'enum'], ['pierce', 'Пирсинг и серьги', 'enum']]],
+    ['Волосы и борода', [['hair', 'Причёска', 'enum'], ['hairC', 'Цвет волос', 'col', 'hair'], ['beard', 'Борода и усы', 'enum'], ['beardC', 'Цвет бороды', 'ocol', 'hair', 'hairC', 'Как волосы']]],
     ['Броня', [['body', 'Телосложение', 'enum'], ['prim', 'Основной цвет', 'col', 'armor'], ['sec', 'Второй цвет', 'col', 'armor'], ['trim', 'Окантовка', 'col', 'armor'], ['pads', 'Наплечники', 'enum'], ['heraldry', 'Символ на наплечнике', 'bool'], ['robe', 'Длинное одеяние', 'bool']]],
     ['Снаряжение', [['cloak', 'Плащ / табард', 'enum'], ['cloakC', 'Цвет плаща', 'col', 'armor'], ['weapon', 'В руках', 'enum'], ['acc', 'Аксессуары', 'acc']]],
   ];
+  // лицевые опции: у демонов остаются только кожа, причёска и её цвет (у них свои морды)
+  const FACE_K = ['skin', 'eyes', 'eyeC', 'brows', 'mouth', 'ears', 'scar', 'paint', 'aug', 'pierce', 'hair', 'hairC', 'beard', 'beardC'];
+  const DAEMON_OK = ['skin', 'hair', 'hairC'];
   let ED = null;
   function openEditor() {
     ED = { look: cleanLook(plainLook(G.look)), dir: 'down', pose: 'idle', from: G.state };
@@ -636,12 +651,14 @@
     const box = $('eOpts'); box.textContent = '';
     for (const [title, rows] of SECTIONS) {
       const h = document.createElement('h3'); h.textContent = title; box.appendChild(h);
-      for (const [k, label, type, pal] of rows) {
+      for (const [k, label, type, pal, base, sameN] of rows) {
         const row = document.createElement('div'); row.className = 'row'; row.dataset.k = k; const lb = document.createElement('label'); lb.textContent = label; row.appendChild(lb);
         const ctl = document.createElement('div'); ctl.className = 'ctl'; row.appendChild(ctl);
         if (type === 'enum') { for (const [v, n] of OPT[k]) { const b = document.createElement('button'); b.className = 'chip'; b.dataset.v = v; b.textContent = n; b.onclick = () => setL(k, v); ctl.appendChild(b); } }
         else if (type === 'bool') { for (const [v, n] of [[true, 'Да'], [false, 'Нет']]) { const b = document.createElement('button'); b.className = 'chip'; b.dataset.v = String(v); b.textContent = n; b.onclick = () => setL(k, v); ctl.appendChild(b); } }
         else if (type === 'acc') { for (const [v, n] of ACC_N) { const b = document.createElement('button'); b.className = 'chip'; b.dataset.v = v; b.textContent = n; b.onclick = () => { const s = new Set(ED.look.acc); s.has(v) ? s.delete(v) : s.add(v); setL('acc', [...s]); }; ctl.appendChild(b); } }
+        else if (type === 'ocol') { const sb = document.createElement('button'); sb.className = 'chip'; sb.dataset.v = ''; sb.textContent = sameN; sb.onclick = () => setL(k, ''); ctl.appendChild(sb); row.dataset.base = base;
+          for (const c of A.PAL[pal]) { const b = document.createElement('button'); b.className = 'sw'; b.dataset.v = c; b.style.background = c; b.title = c; b.onclick = () => setL(k, c); ctl.appendChild(b); } const inp = document.createElement('input'); inp.type = 'color'; inp.title = 'Свой цвет'; inp.oninput = () => setL(k, inp.value); ctl.appendChild(inp); }
         else if (type === 'col') { for (const c of A.PAL[pal]) { const b = document.createElement('button'); b.className = 'sw'; b.dataset.v = c; b.style.background = c; b.title = c; b.onclick = () => setL(k, c); ctl.appendChild(b); } const inp = document.createElement('input'); inp.type = 'color'; inp.title = 'Свой цвет'; inp.oninput = () => setL(k, inp.value); ctl.appendChild(inp); }
         box.appendChild(row);
       }
@@ -654,15 +671,19 @@
     for (const b of document.querySelectorAll('#eSides .side')) b.classList.toggle('on', b.dataset.side === L.side);
     const F = A.FACTIONS[L.faction], SD = A.SIDES.find(x => x.id === L.side);
     $('eArchName').textContent = (SD ? SD.name + ' · ' + SD.sub + ': ' : '') + F.name;
-    for (const row of document.querySelectorAll('#eOpts .row')) { const k = row.dataset.k, v = L[k];
+    const faceHidden = L.side !== 'daemon' && L.helmet && !['cap', 'hat', 'ork'].includes(L.helm);
+    for (const h of document.querySelectorAll('#eOpts h3')) h.style.display = L.side === 'daemon' && /^Лицо/.test(h.textContent) ? 'none' : '';
+    for (const row of document.querySelectorAll('#eOpts .row')) { const k = row.dataset.k, v = L[k] == null ? '' : L[k];
       for (const b of row.querySelectorAll('.chip,.sw')) b.classList.toggle('on', Array.isArray(v) ? v.includes(b.dataset.v) : String(v).toLowerCase() === String(b.dataset.v).toLowerCase());
-      const inp = row.querySelector('input[type=color]'); if (inp && document.activeElement !== inp) inp.value = v;
+      const inp = row.querySelector('input[type=color]'); if (inp && document.activeElement !== inp) inp.value = v || L[row.dataset.base] || '#888888';
+      if (FACE_K.includes(k)) { row.style.display = L.side === 'daemon' && !DAEMON_OK.includes(k) ? 'none' : ''; row.classList.toggle('dim', faceHidden); }
+      if (k === 'beardC') row.classList.toggle('dim', faceHidden || L.beard === 'none');
       if (k === 'helm') row.classList.toggle('dim', !L.helmet || L.side === 'daemon'); if (k === 'cloakC') row.classList.toggle('dim', L.cloak === 'none'); if (k === 'helmet' || k === 'body') row.classList.toggle('dim', L.side === 'daemon'); }
   }
   $('eDone').onclick = () => closeEditor(true);
   $('eCancel').onclick = () => closeEditor(false);
   $('eReset').onclick = () => { ED.look = cleanLook(A.defaultLook(ED.look.arch)); refreshEditor(); };
-  $('eRand').onclick = () => { const pick = a => a[Math.random() * a.length | 0]; const o = A.defaultLook(pick(Object.keys(A.FACTIONS))); for (const k in ENUM) if (Math.random() < .6) o[k] = pick(ENUM[k]); for (const k of COLK) if (Math.random() < .7) o[k] = pick(A.PAL[k === 'skin' ? 'skin' : k === 'hairC' ? 'hair' : k === 'eye' ? 'glow' : 'armor']); if (o.side !== 'daemon') o.body = A.defaultLook(o.faction).body; o.helmet = Math.random() < .5; o.acc = ACC.filter(() => Math.random() < .3); ED.look = cleanLook(o); refreshEditor(); };
+  $('eRand').onclick = () => { const pick = a => a[Math.random() * a.length | 0]; const o = A.defaultLook(pick(Object.keys(A.FACTIONS))); for (const k in ENUM) if (Math.random() < .6) o[k] = pick(ENUM[k]); for (const k of COLK) if (Math.random() < .7) o[k] = pick(A.PAL[k === 'skin' ? 'skin' : k === 'hairC' ? 'hair' : k === 'eye' ? 'glow' : 'armor']); if (o.side !== 'daemon') o.body = A.defaultLook(o.faction).body; for (const [k, p] of [['eyeC', 'eyes'], ['beardC', 'hair']]) if (Math.random() < .35) o[k] = pick(A.PAL[p]); o.helmet = Math.random() < .5; o.acc = ACC.filter(() => Math.random() < .3); ED.look = cleanLook(o); refreshEditor(); };
   for (const b of document.querySelectorAll('[data-rot]')) b.onclick = () => { const order = ['down', 'left', 'up', 'right']; ED.dir = order[(order.indexOf(ED.dir) + (+b.dataset.rot) + 4) % 4]; };
   for (const b of document.querySelectorAll('[data-pose]')) b.onclick = () => { ED.pose = b.dataset.pose; for (const x of document.querySelectorAll('[data-pose]')) x.classList.toggle('on', x === b); };
   const ePrev = $('ePrev'), epg = ePrev.getContext('2d');
@@ -672,6 +693,10 @@
     epg.fillStyle = '#1a1630'; epg.beginPath(); epg.ellipse(W / 2, H * .86, W * .32, H * .06, 0, 0, 7); epg.fill();
     const fr = ED.pose === 'walk' ? Math.floor(G.t * 8) % 4 : Math.floor(G.t * 1.6) % 2, s = A.sprite(ED.look, ED.dir, ED.pose, fr, (G.t % 3.7) < .12), k = 4;
     epg.drawImage(s.c, Math.round(W / 2 - s.ax * k), Math.round(H * .86 - s.ay * k), s.c.width * k, s.c.height * k);
+    // крупный план лица в углу: голова ×7
+    { const f = A.sprite(ED.look, ED.dir, 'idle', 0, false), z = 6, cw = 20, chh = 22, sx = f.head[0] - 4, sy = Math.max(0, f.head[1] - 6), bx = 8, by = 8, bw = cw * z, bh = chh * z;
+      epg.fillStyle = 'rgba(10,8,20,.82)'; epg.fillRect(bx - 2, by - 2, bw + 4, bh + 4); epg.strokeStyle = '#d9b25a88'; epg.lineWidth = 1; epg.strokeRect(bx - 1.5, by - 1.5, bw + 3, bh + 3);
+      epg.drawImage(f.c, sx, sy, cw, chh, bx, by, bw, bh); }
     if (ED.look.acc.includes('skull')) { epg.save(); epg.scale(k, k); A.skull(epg, (W / 2 + 18 * k) / k, (H * .86 - 40 * k) / k + Math.sin(G.t * 3) * 1.5, G.t, '#ff3030'); epg.restore(); }
   }
   const mPrev = $('mPrev'), mpg = mPrev.getContext('2d');

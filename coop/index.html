@@ -957,11 +957,11 @@ function flowDir(e){
 const PCOL={blood:[pack(150,0,0),pack(110,0,0),pack(190,20,10)],gib:[pack(130,10,10),pack(90,0,0),pack(200,140,120),pack(230,220,200),pack(160,40,40)],spark:[pack(255,230,120,254),pack(255,160,40,254)],psy:[pack(60,140,255,254),pack(200,240,255,254),pack(212,166,64,254)],metal:[pack(180,180,190),pack(120,120,130)],warp:[pack(80,220,255,254),pack(255,110,230,254),pack(140,90,255,254),pack(230,250,255,254)]};
 function particles(x,y,z,n,kind,spd,size,life){ if(n>=2) Net.ev(['p',+x.toFixed(2),+y.toFixed(2),+z.toFixed(2),n,kind,spd,size,life]); const cols=PCOL[kind]; for(let i=0;i<n;i++){ if(G.parts.length>900) G.parts.shift(); const a=Math.random()*Math.PI*2,s=Math.random()*spd;
  G.parts.push({x,y,z,vx:Math.cos(a)*s,vy:Math.sin(a)*s,vz:rand(0.5,1)*spd*1.2,col:cols[Math.random()*cols.length|0],s:size*rand(0.6,1.4),life:life*rand(0.6,1.2),grav:kind==='warp'?1.5:kind==='spark'||kind==='psy'?4:9}); } }
-function boom(x,y,size){ Net.ev(['b',+x.toFixed(2),+y.toFixed(2),size]); G.booms.push({x,y,t:0,size}); }
+function boom(x,y,size,w){ Net.ev(['b',+x.toFixed(2),+y.toFixed(2),size,w?1:0]); G.booms.push({x,y,t:0,size,w:w?1:0}); }
 function sndAt(name,x,y,k){ k=k||1; Snd.play(name,vol(x,y)*k); Net.ev(['s',name,+x.toFixed(1),+y.toFixed(1),k]); }
 function vol(x,y){ return clamp(1-Math.hypot(x-G.px,y-G.py)/18,0,1); }
 function explode(x,y,r,dmg,fromPlayer){
- boom(x,y,r*0.9); if(fromPlayer){ const bb=G.booms[G.booms.length-1]; if(bb) bb.w=1; particles(x,y,0.35,30,'warp',4.5,0.035,0.7); } particles(x,y,0.3,fromPlayer?10:25,'spark',4,0.05,0.6); sndAt('boom',x,y,1.2); G.shake=Math.max(G.shake,8*vol(x,y)); G.light=Math.max(G.light,0.6*vol(x,y));
+ boom(x,y,r*0.9,fromPlayer); if(fromPlayer){ particles(x,y,0.35,30,'warp',4.5,0.035,0.7); } particles(x,y,0.3,fromPlayer?10:25,'spark',4,0.05,0.6); sndAt('boom',x,y,1.2); G.shake=Math.max(G.shake,8*vol(x,y)); G.light=Math.max(G.light,0.6*vol(x,y));
  for(const e of G.enemies){ if(e.dead) continue; const d=Math.hypot(e.x-x,e.y-y); if(d<r){ const k=1-d/r*0.6; damageEnemy(e,dmg*k,(e.x-x)/(d||1),(e.y-y)/(d||1),true);} }
  const pd=Math.hypot(G.px-x,G.py-y); if(!fromPlayer&&pd<r) hurtPlayer(dmg*0.6*(1-pd/r*0.6),true);
  if(fromPlayer&&pd<r*0.6) hurtPlayer(dmg*0.25*(1-pd/r),true);
@@ -1797,7 +1797,7 @@ const Net={coop:false,host:false,client:false,peer:null,hostConn:null,code:'',my
   for(const id in this.peers) if(!seen[id]){ delete this.peers[id]; const el=$('nick_'+id); if(el) el.remove(); }
   this.applyEvents(m.ev); },
  applyEvents(ev){ for(const e of ev||[]){ switch(e[0]){
-   case 'p': particles(e[1],e[2],e[3],e[4],e[5],e[6],e[7],e[8]); break; case 'b': boom(e[1],e[2],e[3]); break;
+   case 'p': particles(e[1],e[2],e[3],e[4],e[5],e[6],e[7],e[8]); break; case 'b': boom(e[1],e[2],e[3],e[4]); break;
    case 's': Snd.play(e[1],vol(e[2],e[3])*(e[4]||1)); break; case 'sb': if(isSpace()) Space.sboom(e[1],e[2],e[3]); break; } } },
  // ---------- снимки: космос ----------
  buildSpace(){ const S=Space.S, sh=S.ship, B=S.boss;

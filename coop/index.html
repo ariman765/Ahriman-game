@@ -149,10 +149,10 @@ function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;
 // ====================== НАСТРОЙКИ ======================
 const settings=Object.assign({sens:1,master:0.8,sfx:0.9,mus:0.5,mute:false},load('pdo_settings',{}));
 const DIFFS=[
- {name:'Легко',desc:'Враги слабее, их меньше, мана восстанавливается быстро.',dmg:0.5,hp:0.75,extra:0,regen:1.7,spd:0.9,detect:1,react:1,acc:1,proj:1,loot:1,drop:0.18,bossHp:1},
- {name:'Нормально',desc:'Враги крепче и злее, патрулей больше, припасы скромнее.',dmg:1.25,hp:1.2,extra:1,regen:0.85,spd:1.08,detect:1.15,react:0.85,acc:0.75,proj:1.1,loot:0.85,drop:0.14,bossHp:1.15},
- {name:'Высоко',desc:'Плотные ряды, тяжёлый урон, скупая мана. Опытному стрелку придётся попотеть.',dmg:1.7,hp:1.5,extra:2,regen:0.55,spd:1.18,detect:1.3,react:0.65,acc:0.45,proj:1.22,loot:0.65,drop:0.1,bossHp:1.35},
- {name:'Кошмар Тзинча',desc:'Орды, безжалостный урон, мана течёт скупо. Перемены неизбежны.',dmg:2.15,hp:1.8,extra:3,regen:0.35,spd:1.28,detect:1.5,react:0.45,acc:0.25,proj:1.35,loot:0.5,drop:0.06,bossHp:1.55},
+ {name:'Легко',desc:'Враги слабее, их меньше, мана восстанавливается быстро.',dmg:0.5,hp:0.75,extra:0,regen:1.7,spd:0.9,detect:1,react:1,acc:1,proj:1,loot:1,drop:0.18,bossHp:1,pdmg:1.1,spread:1},
+ {name:'Нормально',desc:'Враги крепче и злее, патрулей больше, припасы скромнее.',dmg:1.25,hp:1.2,extra:1,regen:0.85,spd:1.08,detect:1.15,react:0.85,acc:0.75,proj:1.1,loot:0.85,drop:0.14,bossHp:1.15,pdmg:1,spread:1},
+ {name:'Высоко',desc:'Плотные ряды, тяжёлый урон, скупая мана. Опытному стрелку придётся попотеть.',dmg:1.7,hp:1.5,extra:2,regen:0.55,spd:1.18,detect:1.3,react:0.65,acc:0.45,proj:1.22,loot:0.65,drop:0.1,bossHp:1.35,pdmg:0.85,spread:1.5},
+ {name:'Кошмар Тзинча',desc:'Орды, безжалостный урон, мана течёт скупо. Перемены неизбежны.',dmg:2.15,hp:1.8,extra:3,regen:0.35,spd:1.28,detect:1.5,react:0.45,acc:0.25,proj:1.35,loot:0.5,drop:0.06,bossHp:1.55,pdmg:0.75,spread:1.8},
 ];
 let diffIdx=clamp(load('pdo_diff',1)|0,0,3);
 
@@ -878,7 +878,7 @@ const keys={}; let mouseDown=false, rmb=false;
 const G={state:'menu',stage:0,t:0,lvlTime:0,kills:0,total:0,shake:0,hurt:0,pick:0,light:0,pitch:0,recoil:0,bob:0,moveAmt:0,
  grid:null,mw:0,mh:0,doorOpen:null,doorTimer:null,flow:null,flowCell:-1,tex:[],floorTex:null,ceilTex:null,fog:[0,0,0],fogK:0.05,
  enemies:[],pickups:[],decor:[],projs:[],parts:[],booms:[],timers:[],px:2,py:2,pa:0,msgs:[],endTimer:0,boss:null,hadLock:false,totalKills:0,totalTime:0};
-const P={hp:100,ar:0,ammo:60,mana:100,w:{1:true,2:false,3:true},cur:1,cd:0,flash:0};
+const P={hp:100,ar:0,ammo:60,mana:100,w:{1:true,2:false,3:true},cur:1,cd:0,flash:0,inv:0,fb:0};
 const progress=Object.assign({unlocked:0,last:0,snaps:{}},load('pdo_progress',{}));
 function saveProgress(){store('pdo_progress',progress);}
 function snapP(){return {hp:P.hp,ar:P.ar,ammo:P.ammo,mana:P.mana,w:Object.assign({},P.w),cur:P.cur};}
@@ -887,6 +887,8 @@ function defaultP(stage){return {hp:100,ar:stage>2?25:0,ammo:60+stage*15,mana:10
 const D=()=>DIFFS[diffIdx];
 function keepPick(type,x,y){ if(type==='shotgun') return true; const L=D().loot; return L>=0.99||(((x*13+y*7)|0)%10)<Math.max(3,Math.round(L*10)); }
 function pickAmt(base,small){ return Math.max(1,Math.round(base*(small?0.4:1)*D().loot)); }
+function pDmg(n){ return n*(D().pdmg||1); }
+function restoreBetween(){ const i=diffIdx; if(i>=3){ P.hp=Math.max(P.hp,25); P.mana=Math.min(100,P.mana+30); } else if(i>=2){ P.hp=Math.max(P.hp,35); P.mana=Math.min(100,P.mana+50); } else { P.hp=Math.max(P.hp,50); P.mana=100; } }
 function groundIndex(stage){let n=0;for(let i=0;i<stage;i++) if(LEVELS[i].type==='ground') n++; return n;}
 function msg(t){G.msgs.push({t,life:2.5}); if(G.msgs.length>4) G.msgs.shift();}
 
@@ -966,8 +968,8 @@ function explode(x,y,r,dmg,fromPlayer){
  Net.explodeRemote(x,y,r,dmg,fromPlayer);
 }
 function hurtPlayer(dmg,raw){
- if(G.state!=='play'||(Net.coop&&P.down)) return; if(!raw) dmg*=D().dmg*(1+0.08*groundIndex(G.stage)); else dmg*=Math.sqrt(D().dmg);
- const a=Math.min(P.ar,dmg*0.5); P.ar-=a; P.hp-=dmg-a; G.hurt=Math.min(1,G.hurt+0.35+dmg/60); G.shake=Math.max(G.shake,4+dmg/5); Snd.play('hurt',0.8);
+ if(G.state!=='play'||(Net.coop&&P.down)||P.inv>0) return; if(!raw) dmg*=D().dmg*(1+0.08*groundIndex(G.stage)); else dmg*=Math.sqrt(D().dmg);
+ const a=Math.min(P.ar,dmg*0.5); P.ar-=a; P.hp-=dmg-a; P.inv=0.25; G.hurt=Math.min(1,G.hurt+0.35+dmg/60); G.shake=Math.max(G.shake,4+dmg/5); Snd.play('hurt',0.8);
  if(P.hp<=0){ P.hp=0; if(Net.coop){ P.down=true; Net.reviveT=0; msg('Вы повержены! Союзник может поднять вас.'); Snd.play('pdie',1); } else playerDie(); }
 }
 function damageEnemy(e,dmg,dx,dy,splash){
@@ -1003,12 +1005,12 @@ function hitscan(a,dmg,ox,oy){
 }
 function playerFire(){
  const w=WEAP[P.cur]; if(P.cd>0) return;
- if(P[w.res]<w.cost){ P.cd=0.3; Snd.play('click',1); if(P.cur!==3&&P.mana>=18){P.cur=3;msg('Варп-заряд иссяк — Психическое копьё');} return; }
- P[w.res]-=w.cost; P.cd=w.cd; P.flash=0.06;
- const spr=keys.ShiftLeft||keys.ShiftRight?0.02:0;
- if(P.cur===1){ hitscan(G.pa+rand(-1,1)*(0.025+spr),rand(14,20)); G.recoil=6; G.pitch-=2.5; G.shake=Math.max(G.shake,2.5); G.light=0.7; Snd.play('heavy',1); }
- else if(P.cur===2){ for(let i=0;i<8;i++) hitscan(G.pa+rand(-1,1)*0.1,9); G.recoil=14; G.pitch-=8; G.shake=Math.max(G.shake,6); G.light=1; Snd.play('shotgun',1); }
- else { const dx=Math.cos(G.pa),dy=Math.sin(G.pa); if(Net.client) Net.send({t:'psy',x:G.px,y:G.py,a:G.pa}); else G.projs.push({x:G.px+dx*0.4,y:G.py+dy*0.4,vx:dx*10,vy:dy*10,dmg:55,spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); G.recoil=8; G.pitch-=3; G.light=0.5; Snd.play('psy',1); }
+ if(P[w.res]<w.cost){ P.cd=0.3; Snd.play('click',1); if(P.cur!==3&&P.mana>=18){P.cur=3;P.fb=1;msg('Варп-заряд иссяк — Психическое копьё');} return; }
+ P[w.res]-=w.cost; P.cd=w.cd; if(P.cur===3&&P.fb) P.cd=w.cd*(diffIdx>=3?2:diffIdx>=2?1.5:1); P.flash=0.06;
+ const spr=keys.ShiftLeft||keys.ShiftRight?0.02:0, spK=D().spread||1;
+ if(P.cur===1){ hitscan(G.pa+rand(-1,1)*(0.025+spr)*spK,pDmg(rand(14,20))); G.recoil=6; G.pitch-=2.5; G.shake=Math.max(G.shake,2.5); G.light=0.7; Snd.play('heavy',1); }
+ else if(P.cur===2){ for(let i=0;i<8;i++) hitscan(G.pa+rand(-1,1)*0.1,pDmg(9)); G.recoil=14; G.pitch-=8; G.shake=Math.max(G.shake,6); G.light=1; Snd.play('shotgun',1); }
+ else { const dx=Math.cos(G.pa),dy=Math.sin(G.pa); if(Net.client) Net.send({t:'psy',x:G.px,y:G.py,a:G.pa}); else G.projs.push({x:G.px+dx*0.4,y:G.py+dy*0.4,vx:dx*10,vy:dy*10,dmg:pDmg(55),spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); G.recoil=8; G.pitch-=3; G.light=0.5; Snd.play('psy',1); }
  if(!Net.client) wakeAround(G.px,G.py);
 }
 function wakeAround(x,y){ const det=D().detect; for(const e of G.enemies){ if(!e.dead&&!e.awake&&e.type!=='barrel'){ const d=Math.hypot(e.x-x,e.y-y); if(d<6*det||(d<12*det&&los(e.x,e.y,x,y))) wake(e);} } }
@@ -1051,7 +1053,7 @@ function updateEnemy(e,dt){
   e.chargeT-=dt;
   if(e.cd<=0&&e.see){ e.cd=(enraged?1.0:1.5)/aggro; e.atk=0.4; const a=Math.atan2(dy,dx), n=(enraged?7:5)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++) enemyShoot(e,a+(k-(n-1)/2)*0.13,def.ps*d.proj,def.dmg,SPR.holy); sndAt('eshot',e.x,e.y,1.4); sndAt('fireball',e.x,e.y,0.8); }
   if(e.chargeT<=0&&e.see&&dist>2.5){ e.chargeT=(enraged?4:7)*d.react; e.mode='charge'; e.ct=1.1; e.cx=ux; e.cy=uy; sndAt('roar',e.x,e.y,1.5); e.atk=1.1; }
-  if(enraged){ e.summonT-=dt; if(e.summonT<=0){ e.summonT=d.extra>=3?6:d.extra>=2?7:9; Net.msgAll('Гранд-магистр призывает Серых Рыцарей!'); const adds=2+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<adds;k++){ for(let tries=0;tries<10;tries++){ const sx=e.x+rand(-2.5,2.5), sy=e.y+rand(-2.5,2.5); if(!blocked(sx,sy,0.35)){ const n={...e}; Object.assign(n,{code:'R',type:'rusher',r:0.3,h:0.72,hp:40*d.hp*1.5*Net.hpScale(),max:40,frames:SPR.e.rusherS,awake:true,mode:'walk',x:sx,y:sy,cd:1,counted:true,dead:false,gib:false,flash:0,pain:0,atk:0}); G.enemies.push(n); G.total++; boom(sx,sy,0.6); break; } } } } }
+  if(enraged){ e.summonT-=dt; if(e.tel>0){ e.tel-=dt; e.flash=0.16; if(Math.random()<dt*14) particles(e.x,e.y,e.h*0.85,3,'warp',1.6,0.04,0.45); if(e.tel<=0){ const adds=e.addN||2; for(let k=0;k<adds;k++){ for(let tries=0;tries<10;tries++){ const sx=e.x+rand(-2.5,2.5), sy=e.y+rand(-2.5,2.5); if(!blocked(sx,sy,0.35)){ const n={...e}; Object.assign(n,{code:'R',type:'rusher',r:0.3,h:0.72,hp:40*d.hp*1.5*Net.hpScale(),max:40,frames:SPR.e.rusherS,awake:true,mode:'walk',x:sx,y:sy,cd:1,tel:0,counted:true,dead:false,gib:false,flash:0,pain:0,atk:0}); G.enemies.push(n); G.total++; boom(sx,sy,0.6); break; } } } } } else if(e.summonT<=0){ e.summonT=d.extra>=3?6:d.extra>=2?7:9; e.tel=0.7; e.addN=2+(d.extra>=3?2:d.extra>=2?1:0); e.flash=0.7; sndAt('roar',e.x,e.y,1.5); Net.msgAll('Гранд-магистр призывает Серых Рыцарей!'); } }
  }
  // разделение
  for(const o of G.enemies){ if(o===e||o.dead||o.type==='barrel') continue; const ox=e.x-o.x,oy=e.y-o.y,od=Math.hypot(ox,oy),rr=e.r+o.r; if(od<rr&&od>0.001){ mx+=ox/od*0.8; my+=oy/od*0.8; } }
@@ -1063,10 +1065,10 @@ function moveEnt(e,dx,dy){ let m=false; if(!blocked(e.x+dx,e.y,e.r)){e.x+=dx;m=t
 function applyPickup(type,small){ let ok=true;
   switch(type){
    case 'health': if(P.hp>=100) ok=false; else {const n=pickAmt(30,small);P.hp=Math.min(100,P.hp+n);msg('+'+n+' здоровья');} break;
-   case 'ammo': if(P.ammo>=250) ok=false; else {const n=pickAmt(40,small);P.ammo=Math.min(250,P.ammo+n);msg('+'+n+' варп-заряда');} break;
+   case 'ammo': if(P.ammo>=250) ok=false; else {const n=pickAmt(40,small);P.ammo=Math.min(250,P.ammo+n);P.fb=0;msg('+'+n+' варп-заряда');} break;
    case 'mana': if(P.mana>=100) ok=false; else {const n=pickAmt(40,small);P.mana=Math.min(100,P.mana+n);msg('+'+n+' маны');} break;
    case 'armor': if(P.ar>=100) ok=false; else {const n=pickAmt(50,false);P.ar=Math.min(100,P.ar+n);msg('+'+n+' брони');} break;
-   case 'shotgun': P.w[2]=true; P.cur=2; P.ammo=Math.min(250,P.ammo+20); msg('Постигнута сила: ДИСКИ ТЗИНЧА! [2]'); break;
+   case 'shotgun': P.w[2]=true; P.cur=2; P.ammo=Math.min(250,P.ammo+20); P.fb=0; msg('Постигнута сила: ДИСКИ ТЗИНЧА! [2]'); break;
   }
  if(ok){ G.pick=0.4; Snd.play(type==='mana'?'mpick':'pickup',1); } return ok; }
 function pickFull(type,st){ return type==='health'?st.hp>=100:type==='ammo'?st.ammo>=250:type==='mana'?st.mana>=100:type==='armor'?st.ar>=100:false; }
@@ -1094,7 +1096,7 @@ function updateGround(dt){
  }
  updateFlow();
  // оружие
- P.cd-=dt; P.flash-=dt; P.mana=Math.min(100,P.mana+3*D().regen*dt);
+ P.cd-=dt; P.flash-=dt; P.inv-=dt; P.mana=Math.min(100,P.mana+3*D().regen*dt);
  if(MD||keys_.Space) playerFire();
  if(Net.coop) Net.localTick(dt);
  // враги
@@ -1104,7 +1106,7 @@ function updateGround(dt){
  for(const p of G.projs){ const steps=3; for(let s=0;s<steps&&p.life>0;s++){ p.x+=p.vx*dt/steps; p.y+=p.vy*dt/steps;
    if(losSolid(p.x,p.y)){ p.life=0; if(p.splash) explode(p.x-p.vx*0.01,p.y-p.vy*0.01,p.splash,40,true); else particles(p.x-p.vx*0.02,p.y-p.vy*0.02,p.z,6,'spark',2,0.03,0.3); break; }
    if(p.own==='e'){ const T=Net.hitPlayer(p.x,p.y,0.35); if(T){ p.life=0; Net.hurt(T,p.dmg); } }
-   else for(const e of G.enemies){ if(!e.dead&&Math.hypot(p.x-e.x,p.y-e.y)<e.r+0.18){ p.life=0; damageEnemy(e,p.dmg,p.vx/10,p.vy/10,true); explode(p.x,p.y,p.splash,40,true); particles(p.x,p.y,p.z,15,'psy',3,0.04,0.5); break; } }
+   else for(const e of G.enemies){ if(!e.dead&&Math.hypot(p.x-e.x,p.y-e.y)<e.r+0.18){ p.life=0; damageEnemy(e,p.dmg,p.vx/10,p.vy/10,true); explode(p.x,p.y,p.splash,pDmg(40),true); particles(p.x,p.y,p.z,15,'psy',3,0.04,0.5); break; } }
   } p.life-=dt; if(p.own==='p'&&Math.random()<0.6) particles(p.x,p.y,p.z,1,'psy',0.5,0.03,0.3); }
  G.projs=G.projs.filter(p=>p.life>0);
  // частицы
@@ -1383,10 +1385,10 @@ const Space={S:null,spr:{},bg:null,
  sboom(x,y,r){ Net.ev(['sb',x|0,y|0,r|0]); const S=this.S; S.booms.push({x,y,r,t:0}); for(let i=0;i<r;i++){const a=Math.random()*7,s=rand(20,120)*r/12;S.fx.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(0.3,0.9),col:['#fff4a0','#ffaa22','#ff5511','#888'][i%4]});} Snd.play(r>14?'boom':'edie',r>14?1:0.6); S.shake=Math.max(S.shake,r/3); },
  hurt(dmg){ const sh=this.S.ship; if(sh.inv>0||sh.dead) return; sh.hull-=dmg*D().dmg; sh.inv=0.5; this.S.hurt=0.6; this.S.shake=6; Snd.play('hurt',0.8);
   if(sh.hull<=0){ sh.hull=0; sh.dead=1.4; this.sboom(sh.x,sh.y,30); Snd.play('pdie',1); } },
- fire(sh){ const S=this.S; sh.cd=0.1; const ys=sh.power>=1?[-3,3]:[0]; ys.forEach(o=>S.bul.push({x:sh.x+30,y:sh.y+o,vx:430,vy:0,dmg:8}));
-   if(sh.power>=2){S.bul.push({x:sh.x+26,y:sh.y-5,vx:410,vy:-70,dmg:6});S.bul.push({x:sh.x+26,y:sh.y+5,vx:410,vy:70,dmg:6});}
-   if(sh.power>=3){S.bul.push({x:sh.x+20,y:sh.y-6,vx:380,vy:-150,dmg:6});S.bul.push({x:sh.x+20,y:sh.y+6,vx:380,vy:150,dmg:6});} },
- missile(sh){ this.S.bul.push({x:sh.x+30,y:sh.y,vx:250,vy:0,dmg:60,psy:true,life:3}); },
+ fire(sh){ const S=this.S; sh.cd=0.1; const ys=sh.power>=1?[-3,3]:[0]; ys.forEach(o=>S.bul.push({x:sh.x+30,y:sh.y+o,vx:430,vy:0,dmg:pDmg(8)}));
+   if(sh.power>=2){S.bul.push({x:sh.x+26,y:sh.y-5,vx:410,vy:-70,dmg:pDmg(6)});S.bul.push({x:sh.x+26,y:sh.y+5,vx:410,vy:70,dmg:pDmg(6)}); }
+   if(sh.power>=3){S.bul.push({x:sh.x+20,y:sh.y-6,vx:380,vy:-150,dmg:pDmg(6)});S.bul.push({x:sh.x+20,y:sh.y+6,vx:380,vy:150,dmg:pDmg(6)});} },
+ missile(sh){ this.S.bul.push({x:sh.x+30,y:sh.y,vx:250,vy:0,dmg:pDmg(60),psy:true,life:3}); },
  update(dt){
   const S=this.S, sh=S.ship, d=D(); S.t+=dt; G.lvlTime+=dt; S.bgx+=dt*(40+S.si*20);
   for(const s of S.stars){ s.x-=s.z*220*dt; if(s.x<0){s.x=W;s.y=Math.random()*H;} }
@@ -1421,9 +1423,10 @@ const Space={S:null,spr:{},bg:null,
    if(B.cd<=0&&B.x<W){ B.pat=(B.pat+1)%3; B.cd=(enr?1.0:1.5)/d.spd; const a=Math.atan2(tb.y-B.y,tb.x-B.x);
     if(B.pat===0){ const n=(B.big?7:5)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++) this.eshot(B.x-B.rx,B.y,a+(k-(n-1)/2)*0.15,160*d.spd,1.3); Snd.play('eshot',0.8); }
     else if(B.pat===1){ const n=(B.big?20:14)+(d.extra>=3?4:d.extra>=2?2:0); for(let k=0;k<n;k++) this.eshot(B.x,B.y,k/n*Math.PI*2+B.t,110*d.spd,1.2,'#88ddff'); Snd.play('fireball',0.8); }
-    else { const n=(B.big?3:2)+(d.extra>=3?2:d.extra>=2?1:0)+(Net.n>2?1:0); for(let k=0;k<n;k++){ S.en.push({type:'inter',x:B.x-20,y:B.y+(k-n/2)*20,y0:0,t:0,hp:12*this.hpm(),r:8,spr:'inter',cd:9,flash:0,vx:-200}); G.total++; } Snd.play('growl',0.5); }
+    else { B.tel=0.7; B.addN=(B.big?3:2)+(d.extra>=3?2:d.extra>=2?1:0)+(Net.n>2?1:0); B.flash=0.7; Snd.play('roar',1); }
     if(B.big&&enr&&Math.random()<0.5){ for(let k=0;k<5;k++) G.timers.push({t:k*0.12,fn:()=>{ const t2=near(B.x,B.y); if(B.hp>0) this.eshot(B.x-B.rx,B.y,Math.atan2(t2.y-B.y,t2.x-B.x),220*d.spd,1,'#ffffff'); }}); }
    }
+   if(B.tel>0){ B.tel-=dt; B.flash=Math.max(B.flash,0.16); if(Math.random()<dt*10) S.fx.push({x:B.x+rand(-B.rx,B.rx)*0.6,y:B.y+rand(-B.ry,B.ry)*0.6,vx:rand(-30,30),vy:rand(-30,30),life:0.45,col:'#88ddff'}); if(B.tel<=0){ const n=B.addN||2; for(let k=0;k<n;k++){ S.en.push({type:'inter',x:B.x-20,y:B.y+(k-n/2)*20,y0:0,t:0,hp:12*this.hpm(),r:8,spr:'inter',cd:9,flash:0,vx:-200}); G.total++; } Snd.play('growl',0.5); } }
    for(const t of G.timers){ t.t-=dt; if(t.t<=0&&!t.done){t.done=true;t.fn();} } G.timers=G.timers.filter(t=>!t.done);
    for(const s2 of ships) if(((s2.x+10-B.x)/B.rx)**2+((s2.y-B.y)/B.ry)**2<1) Net.shipHurt(s2,25);
   }
@@ -1497,7 +1500,7 @@ function stageComplete(){
  const next=G.stage+1; const L=LEVELS[G.stage];
  const t=G.lvlTime|0; $('dnTitle').textContent=(L.type==='space'?'ПРОРЫВ УДАЛСЯ':'УРОВЕНЬ ПРОЙДЕН')+': '+L.name;
  $('dnStats').innerHTML=`<div class="stat">Убито врагов: <b>${G.kills}${L.type==='ground'?' / '+G.total:''}</b></div><div class="stat">Время: <b>${(t/60|0)}:${String(t%60).padStart(2,'0')}</b></div><div class="stat">Сложность: <b>${D().name}</b></div>`+(next<LEVELS.length?`<div class="stat" style="color:#a08060">Далее: ${LEVELS[next].name}</div>`:'');
- if(next<LEVELS.length){ P.hp=Math.max(P.hp,50); P.mana=100; if(!Net.coop){ progress.unlocked=Math.max(progress.unlocked,next); progress.last=next; progress.snaps[next]=snapP(); saveProgress(); } }
+ if(next<LEVELS.length){ restoreBetween(); if(!Net.coop){ progress.unlocked=Math.max(progress.unlocked,next); progress.last=next; progress.snaps[next]=snapP(); saveProgress(); } }
  Net.doneUI(); show('scDone'); }
 function playerDie(){ if(G.state!=='play'||Net.coop) return; G.state='dead'; unlock(); Snd.play('pdie',1);
  const L=LEVELS[G.stage]; $('deadText').textContent=L.type==='space'?'«Лазурный Коготь» разорван на части... но варп вернёт своего хозяина.':'Тьма поглощает Аримана... но Изменяющий Пути ещё не закончил свою игру.';
@@ -1539,7 +1542,7 @@ window.addEventListener('keydown',e=>{
  if((G.state==='intro'||G.overlay==='intro')&&(e.code==='Enter'||e.code==='Space')&&document.activeElement.tagName!=='INPUT'){ startPlay(); return; }
  if(document.activeElement&&document.activeElement.tagName==='INPUT') return;
  if(e.code==='Escape'||e.code==='KeyP'){ if(G.state==='play') pause(); else if(G.state==='pause') resume(); else if(G.state==='settings') closeSettings(); return; }
- if(G.state==='play'&&!isSpace()&&!(Net.coop&&(G.overlay||P.down))){ const n={Digit1:1,Digit2:2,Digit3:3}[e.code]; if(n&&P.w[n]&&P.cur!==n){P.cur=n;P.cd=Math.max(P.cd,0.2);Snd.play('click',0.6);} }
+ if(G.state==='play'&&!isSpace()&&!(Net.coop&&(G.overlay||P.down))){ const n={Digit1:1,Digit2:2,Digit3:3}[e.code]; if(n&&P.w[n]&&P.cur!==n){P.cur=n;P.fb=0;P.cd=Math.max(P.cd,0.2);Snd.play('click',0.6);} }
 });
 window.addEventListener('keyup',e=>{keys[e.code]=false;});
 window.addEventListener('blur',()=>{for(const k in keys) keys[k]=false; mouseDown=false; rmb=false;});
@@ -1549,7 +1552,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mousemove',e=>{ if(G.state!=='play'||document.pointerLockElement!==cv) return;
  if(isSpace()){ const sh=Space.S.ship; sh.x=clamp(sh.x+e.movementX*0.3*settings.sens,20,W-40); sh.y=clamp(sh.y+e.movementY*0.3*settings.sens,12,H-24); }
  else G.pa+=e.movementX*0.0025*settings.sens; });
-cv.addEventListener('wheel',e=>{ if(G.state!=='play'||isSpace()) return; const own=[1,2,3].filter(n=>P.w[n]); let i=own.indexOf(P.cur); i=(i+(e.deltaY>0?1:-1)+own.length)%own.length; P.cur=own[i]; e.preventDefault(); },{passive:false});
+cv.addEventListener('wheel',e=>{ if(G.state!=='play'||isSpace()) return; const own=[1,2,3].filter(n=>P.w[n]); let i=own.indexOf(P.cur); i=(i+(e.deltaY>0?1:-1)+own.length)%own.length; P.cur=own[i];P.fb=0; e.preventDefault(); },{passive:false});
 document.addEventListener('pointerlockchange',()=>{ if(document.pointerLockElement===cv) G.hadLock=true; else if(G.state==='play'&&G.hadLock) pause(); });
 
 // ---------- HUD ----------
@@ -1667,7 +1670,7 @@ const Net={coop:false,host:false,client:false,peer:null,hostConn:null,code:'',my
     if(m.sp){ if(!p.ship) p.ship={id,x:m.sp[0],y:m.sp[1],cd:0,mcd:0,power:1,inv:0,dead:0,firing:false,slot:p.slot}; const s2=p.ship; s2.tx=m.sp[0]; s2.ty=m.sp[1]; s2.dead=m.sp[2]; s2.firing=!!m.sp[3]; }
     break;
    case 'shot': if(isSpace()||!G.grid) return; for(const [a,dmg] of m.l) hitscan(a,Math.min(20,dmg),p.x,p.y); wakeAround(p.x,p.y); break;
-   case 'psy': if(isSpace()||!G.grid) return; { const dx=Math.cos(m.a),dy=Math.sin(m.a); G.projs.push({x:m.x+dx*0.4,y:m.y+dy*0.4,vx:dx*10,vy:dy*10,dmg:55,spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); wakeAround(m.x,m.y); } break;
+   case 'psy': if(isSpace()||!G.grid) return; { const dx=Math.cos(m.a),dy=Math.sin(m.a); G.projs.push({x:m.x+dx*0.4,y:m.y+dy*0.4,vx:dx*10,vy:dy*10,dmg:pDmg(55),spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); wakeAround(m.x,m.y); } break;
    case 'smis': if(isSpace()&&p.ship) Space.missile(p.ship); break;
   } },
  dropPeer(id){ const p=this.peers[id]; if(!p) return; delete this.peers[id]; this.n=Math.max(1,1+Object.keys(this.peers).length); const el=$('nick_'+id); if(el) el.remove(); this.msgAll(p.name+' покинул отряд'); this.sendLobby(); },
@@ -1783,7 +1786,7 @@ const Net={coop:false,host:false,client:false,peer:null,hostConn:null,code:'',my
   if(G.enemies.length>m.e.length) G.enemies.length=m.e.length;
   for(let i=0;i<m.e.length;i++){ const code=m.ty[i]; let e=G.enemies[i]; const [x,y,f,an,hp]=m.e[i];
    if(!e||e.code!==code){ const type=tmap[code]||'rusher', def=EDEF[type]; e={code,type,x:x/100,y:y/100,r:def.r,h:def.h,frames:type==='barrel'?null:(code==='R'?SPR.e.rusherS:G.fr(type)),hp:1,max:1,anim:0,atk:0,flash:0,dead:false,gib:false}; G.enemies[i]=e; }
-   e.tx=x/100; e.ty=y/100; e.dead=!!(f&1); e.gib=!!(f&2); e.awake=!!(f&4); e.atk=f&8?0.1:0; e.flash=f&16?0.05:0; e.anim=an/10; e.hp=hp; e.max=1000; }
+   e.tx=x/100; e.ty=y/100; e.dead=!!(f&1); e.gib=!!(f&2); e.awake=!!(f&4); e.atk=f&8?0.1:0; e.flash=f&16?0.12:0; e.anim=an/10; e.hp=hp; e.max=1000; }
   G.boss=m.bi>=0?G.enemies[m.bi]:null;
   G.projs=m.pj.map(([x,y,vx,vy,si,z])=>({x:x/100,y:y/100,vx:vx/100,vy:vy/100,spr:this.PSPR[si]||SPR.plasma,z:z/100,life:1}));
   G.pickups=m.pk.map(([x,y,t,sm])=>({x:x/100,y:y/100,type:this.PK[t],small:!!sm}));
@@ -1809,8 +1812,8 @@ const Net={coop:false,host:false,client:false,peer:null,hostConn:null,code:'',my
    pk:S.pk.map(p=>[Math.round(p.x),Math.round(p.y),this.SPK.indexOf(p.type)]),ph:S.phase,tt:+S.t.toFixed(2),w:+S.warn.toFixed(2),k:G.kills,sh:ships,ev:this.evq}; },
  applySpace(m){ if(m.st!==G.stage||!isSpace()) return; const S=Space.S; G.kills=m.k; S.phase=m.ph; S.t=m.tt; S.warn=m.w;
   const old={}; for(const e of S.en) old[e.nid]=e;
-  S.en=m.en.map(([id,c,x,y,f])=>{ const o=old[id]; const t=this.SEN[c]; if(o){ o.tx=x; o.ty=y; o.flash=f?0.05:0; return o; } return {nid:id,type:t,spr:t,x,y,tx:x,ty:y,flash:f?0.05:0,hp:1}; });
-  if(m.b){ const [x,y,hp,max,big,f,dying]=m.b; if(!S.boss) S.boss={x,y,spr:big?'cruiser':'frigate',big:!!big,rx:big?88:64,ry:big?38:26}; const B=S.boss; B.tx=x; B.ty=y; B.hp=hp; B.max=max; B.flash=f?0.05:0; S.endT=dying?1:0; } else S.boss=null;
+  S.en=m.en.map(([id,c,x,y,f])=>{ const o=old[id]; const t=this.SEN[c]; if(o){ o.tx=x; o.ty=y; o.flash=f?0.12:0; return o; } return {nid:id,type:t,spr:t,x,y,tx:x,ty:y,flash:f?0.12:0,hp:1}; });
+  if(m.b){ const [x,y,hp,max,big,f,dying]=m.b; if(!S.boss) S.boss={x,y,spr:big?'cruiser':'frigate',big:!!big,rx:big?88:64,ry:big?38:26}; const B=S.boss; B.tx=x; B.ty=y; B.hp=hp; B.max=max; B.flash=f?0.12:0; S.endT=dying?1:0; } else S.boss=null;
   S.bul=m.bu.map(([x,y,vx,vy,p])=>({x,y,vx,vy,psy:!!p})); S.eb=m.eb.map(([x,y,vx,vy,c])=>({x,y,vx,vy,col:this.ECOL[c]}));
   S.pk=m.pk.map(([x,y,t])=>({x,y,type:this.SPK[t],t:G.t}));
   const seen={}; for(const [id,name,slot,x,y,dead] of m.sh){ if(id===this.myId) continue; seen[id]=1; let p=this.peers[id]; if(!p) p=this.peers[id]={id,name,slot,inGame:true,anim:0}; p.name=name; p.slot=slot; if(!p.ship) p.ship={x,y}; p.ship.tx=x; p.ship.ty=y; p.ship.dead=dead; }

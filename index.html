@@ -121,10 +121,10 @@ function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;
 // ====================== НАСТРОЙКИ ======================
 const settings=Object.assign({sens:1,master:0.8,sfx:0.9,mus:0.5,mute:false},load('pdo_settings',{}));
 const DIFFS=[
- {name:'Легко',desc:'Враги слабее, их меньше, мана восстанавливается быстро.',dmg:0.5,hp:0.75,extra:0,regen:1.7,spd:0.9,detect:1,react:1,acc:1,proj:1,loot:1,drop:0.18,bossHp:1},
- {name:'Нормально',desc:'Враги крепче и злее, патрулей больше, припасы скромнее.',dmg:1.25,hp:1.2,extra:1,regen:0.85,spd:1.08,detect:1.15,react:0.85,acc:0.75,proj:1.1,loot:0.85,drop:0.14,bossHp:1.15},
- {name:'Высоко',desc:'Плотные ряды, тяжёлый урон, скупая мана. Опытному стрелку придётся попотеть.',dmg:1.7,hp:1.5,extra:2,regen:0.55,spd:1.18,detect:1.3,react:0.65,acc:0.45,proj:1.22,loot:0.65,drop:0.1,bossHp:1.35},
- {name:'Кошмар Тзинча',desc:'Орды, безжалостный урон, мана течёт скупо. Перемены неизбежны.',dmg:2.15,hp:1.8,extra:3,regen:0.35,spd:1.28,detect:1.5,react:0.45,acc:0.25,proj:1.35,loot:0.5,drop:0.06,bossHp:1.55},
+ {name:'Легко',desc:'Враги слабее, их меньше, мана восстанавливается быстро.',dmg:0.5,hp:0.75,extra:0,regen:1.7,spd:0.9,detect:1,react:1,acc:1,proj:1,loot:1,drop:0.18,bossHp:1,pdmg:1.1,spread:1},
+ {name:'Нормально',desc:'Враги крепче и злее, патрулей больше, припасы скромнее.',dmg:1.25,hp:1.2,extra:1,regen:0.85,spd:1.08,detect:1.15,react:0.85,acc:0.75,proj:1.1,loot:0.85,drop:0.14,bossHp:1.15,pdmg:1,spread:1},
+ {name:'Высоко',desc:'Плотные ряды, тяжёлый урон, скупая мана. Опытному стрелку придётся попотеть.',dmg:1.7,hp:1.5,extra:2,regen:0.55,spd:1.18,detect:1.3,react:0.65,acc:0.45,proj:1.22,loot:0.65,drop:0.1,bossHp:1.35,pdmg:0.85,spread:1.5},
+ {name:'Кошмар Тзинча',desc:'Орды, безжалостный урон, мана течёт скупо. Перемены неизбежны.',dmg:2.15,hp:1.8,extra:3,regen:0.35,spd:1.28,detect:1.5,react:0.45,acc:0.25,proj:1.35,loot:0.5,drop:0.06,bossHp:1.55,pdmg:0.75,spread:1.8},
 ];
 let diffIdx=clamp(load('pdo_diff',1)|0,0,3);
 
@@ -850,7 +850,7 @@ const keys={}; let mouseDown=false, rmb=false;
 const G={state:'menu',stage:0,t:0,lvlTime:0,kills:0,total:0,shake:0,hurt:0,pick:0,light:0,pitch:0,recoil:0,bob:0,moveAmt:0,
  grid:null,mw:0,mh:0,doorOpen:null,doorTimer:null,flow:null,flowCell:-1,tex:[],floorTex:null,ceilTex:null,fog:[0,0,0],fogK:0.05,
  enemies:[],pickups:[],decor:[],projs:[],parts:[],booms:[],timers:[],px:2,py:2,pa:0,msgs:[],endTimer:0,boss:null,hadLock:false,totalKills:0,totalTime:0};
-const P={hp:100,ar:0,ammo:60,mana:100,w:{1:true,2:false,3:true},cur:1,cd:0,flash:0};
+const P={hp:100,ar:0,ammo:60,mana:100,w:{1:true,2:false,3:true},cur:1,cd:0,flash:0,inv:0,fb:0};
 const progress=Object.assign({unlocked:0,last:0,snaps:{}},load('pdo_progress',{}));
 function saveProgress(){store('pdo_progress',progress);}
 function snapP(){return {hp:P.hp,ar:P.ar,ammo:P.ammo,mana:P.mana,w:Object.assign({},P.w),cur:P.cur};}
@@ -859,6 +859,8 @@ function defaultP(stage){return {hp:100,ar:stage>2?25:0,ammo:60+stage*15,mana:10
 const D=()=>DIFFS[diffIdx];
 function keepPick(type,x,y){ if(type==='shotgun') return true; const L=D().loot; return L>=0.99||(((x*13+y*7)|0)%10)<Math.max(3,Math.round(L*10)); }
 function pickAmt(base,small){ return Math.max(1,Math.round(base*(small?0.4:1)*D().loot)); }
+function pDmg(n){ return n*(D().pdmg||1); }
+function restoreBetween(){ const i=diffIdx; if(i>=3){ P.hp=Math.max(P.hp,25); P.mana=Math.min(100,P.mana+30); } else if(i>=2){ P.hp=Math.max(P.hp,35); P.mana=Math.min(100,P.mana+50); } else { P.hp=Math.max(P.hp,50); P.mana=100; } }
 function groundIndex(stage){let n=0;for(let i=0;i<stage;i++) if(LEVELS[i].type==='ground') n++; return n;}
 function msg(t){G.msgs.push({t,life:2.5}); if(G.msgs.length>4) G.msgs.shift();}
 
@@ -935,8 +937,8 @@ function explode(x,y,r,dmg,fromPlayer){
  if(fromPlayer&&pd<r*0.6) hurtPlayer(dmg*0.25*(1-pd/r),true);
 }
 function hurtPlayer(dmg,raw){
- if(G.state!=='play') return; if(!raw) dmg*=D().dmg*(1+0.08*groundIndex(G.stage)); else dmg*=Math.sqrt(D().dmg);
- const a=Math.min(P.ar,dmg*0.5); P.ar-=a; P.hp-=dmg-a; G.hurt=Math.min(1,G.hurt+0.35+dmg/60); G.shake=Math.max(G.shake,4+dmg/5); Snd.play('hurt',0.8);
+ if(G.state!=='play'||P.inv>0) return; if(!raw) dmg*=D().dmg*(1+0.08*groundIndex(G.stage)); else dmg*=Math.sqrt(D().dmg);
+ const a=Math.min(P.ar,dmg*0.5); P.ar-=a; P.hp-=dmg-a; P.inv=0.25; G.hurt=Math.min(1,G.hurt+0.35+dmg/60); G.shake=Math.max(G.shake,4+dmg/5); Snd.play('hurt',0.8);
  if(P.hp<=0){ P.hp=0; playerDie(); }
 }
 function damageEnemy(e,dmg,dx,dy,splash){
@@ -970,12 +972,12 @@ function hitscan(a,dmg){
 }
 function playerFire(){
  const w=WEAP[P.cur]; if(P.cd>0) return;
- if(P[w.res]<w.cost){ P.cd=0.3; Snd.play('click',1); if(P.cur!==3&&P.mana>=18){P.cur=3;msg('Варп-заряд иссяк — Психическое копьё');} return; }
- P[w.res]-=w.cost; P.cd=w.cd; P.flash=0.06;
- const spr=keys.ShiftLeft||keys.ShiftRight?0.02:0;
- if(P.cur===1){ hitscan(G.pa+rand(-1,1)*(0.025+spr),rand(14,20)); G.recoil=6; G.pitch-=2.5; G.shake=Math.max(G.shake,2.5); G.light=0.7; Snd.play('heavy',1); }
- else if(P.cur===2){ for(let i=0;i<8;i++) hitscan(G.pa+rand(-1,1)*0.1,9); G.recoil=14; G.pitch-=8; G.shake=Math.max(G.shake,6); G.light=1; Snd.play('shotgun',1); }
- else { const dx=Math.cos(G.pa),dy=Math.sin(G.pa); G.projs.push({x:G.px+dx*0.4,y:G.py+dy*0.4,vx:dx*10,vy:dy*10,dmg:55,spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); G.recoil=8; G.pitch-=3; G.light=0.5; Snd.play('psy',1); }
+ if(P[w.res]<w.cost){ P.cd=0.3; Snd.play('click',1); if(P.cur!==3&&P.mana>=18){P.cur=3;P.fb=1;msg('Варп-заряд иссяк — Психическое копьё');} return; }
+ P[w.res]-=w.cost; P.cd=w.cd; if(P.cur===3&&P.fb) P.cd=w.cd*(diffIdx>=3?2:diffIdx>=2?1.5:1); P.flash=0.06;
+ const spr=keys.ShiftLeft||keys.ShiftRight?0.02:0, spK=D().spread||1;
+ if(P.cur===1){ hitscan(G.pa+rand(-1,1)*(0.025+spr)*spK,pDmg(rand(14,20))); G.recoil=6; G.pitch-=2.5; G.shake=Math.max(G.shake,2.5); G.light=0.7; Snd.play('heavy',1); }
+ else if(P.cur===2){ for(let i=0;i<8;i++) hitscan(G.pa+rand(-1,1)*0.1,pDmg(9)); G.recoil=14; G.pitch-=8; G.shake=Math.max(G.shake,6); G.light=1; Snd.play('shotgun',1); }
+ else { const dx=Math.cos(G.pa),dy=Math.sin(G.pa); G.projs.push({x:G.px+dx*0.4,y:G.py+dy*0.4,vx:dx*10,vy:dy*10,dmg:pDmg(55),spr:SPR.psy,own:'p',splash:1.8,life:3,z:0.42}); G.recoil=8; G.pitch-=3; G.light=0.5; Snd.play('psy',1); }
  const det=D().detect; for(const e of G.enemies){ if(!e.dead&&!e.awake){ const d=Math.hypot(e.x-G.px,e.y-G.py); if(d<6*det||(d<12*det&&los(e.x,e.y,G.px,G.py))) wake(e);} }
 }
 function enemyShoot(e,ang,speed,dmg,spr){ G.projs.push({x:e.x+Math.cos(ang)*0.5,y:e.y+Math.sin(ang)*0.5,vx:Math.cos(ang)*speed,vy:Math.sin(ang)*speed,dmg,spr,own:'e',life:4,z:e.h*0.55}); }
@@ -1016,7 +1018,7 @@ function updateEnemy(e,dt){
   e.chargeT-=dt;
   if(e.cd<=0&&e.see){ e.cd=(enraged?1.0:1.5)/aggro; e.atk=0.4; const a=Math.atan2(dy,dx), n=(enraged?7:5)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++) enemyShoot(e,a+(k-(n-1)/2)*0.13,def.ps*d.proj,def.dmg,SPR.holy); Snd.play('eshot',1); Snd.play('fireball',0.6); }
   if(e.chargeT<=0&&e.see&&dist>2.5){ e.chargeT=(enraged?4:7)*d.react; e.mode='charge'; e.ct=1.1; e.cx=ux; e.cy=uy; Snd.play('roar',1); e.atk=1.1; }
-  if(enraged){ e.summonT-=dt; if(e.summonT<=0){ e.summonT=d.extra>=3?6:d.extra>=2?7:9; msg('Гранд-магистр призывает Серых Рыцарей!'); const adds=2+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<adds;k++){ for(let tries=0;tries<10;tries++){ const sx=e.x+rand(-2.5,2.5), sy=e.y+rand(-2.5,2.5); if(!blocked(sx,sy,0.35)){ const n={...e}; Object.assign(n,{type:'rusher',r:0.3,h:0.72,hp:40*d.hp*1.5,max:40,frames:SPR.e.rusherS,awake:true,mode:'walk',x:sx,y:sy,cd:1,counted:true,dead:false,gib:false,flash:0,pain:0,atk:0}); G.enemies.push(n); G.total++; boom(sx,sy,0.6); break; } } } } }
+  if(enraged){ e.summonT-=dt; if(e.tel>0){ e.tel-=dt; e.flash=0.16; if(Math.random()<dt*14) particles(e.x,e.y,e.h*0.85,3,'warp',1.6,0.04,0.45); if(e.tel<=0){ const adds=e.addN||2; for(let k=0;k<adds;k++){ for(let tries=0;tries<10;tries++){ const sx=e.x+rand(-2.5,2.5), sy=e.y+rand(-2.5,2.5); if(!blocked(sx,sy,0.35)){ const n={...e}; Object.assign(n,{type:'rusher',r:0.3,h:0.72,hp:40*d.hp*1.5,max:40,frames:SPR.e.rusherS,awake:true,mode:'walk',x:sx,y:sy,cd:1,tel:0,counted:true,dead:false,gib:false,flash:0,pain:0,atk:0}); G.enemies.push(n); G.total++; boom(sx,sy,0.6); break; } } } } } else if(e.summonT<=0){ e.summonT=d.extra>=3?6:d.extra>=2?7:9; e.tel=0.7; e.addN=2+(d.extra>=3?2:d.extra>=2?1:0); e.flash=0.7; Snd.play('roar',1); msg('Гранд-магистр призывает Серых Рыцарей!'); } }
  }
  // разделение
  for(const o of G.enemies){ if(o===e||o.dead||o.type==='barrel') continue; const ox=e.x-o.x,oy=e.y-o.y,od=Math.hypot(ox,oy),rr=e.r+o.r; if(od<rr&&od>0.001){ mx+=ox/od*0.8; my+=oy/od*0.8; } }
@@ -1047,7 +1049,7 @@ function updateGround(dt){
  }
  updateFlow();
  // оружие
- P.cd-=dt; P.flash-=dt; P.mana=Math.min(100,P.mana+3*D().regen*dt);
+ P.cd-=dt; P.flash-=dt; P.inv-=dt; P.mana=Math.min(100,P.mana+3*D().regen*dt);
  if(mouseDown||keys.Space) playerFire();
  // враги
  for(const e of G.enemies) updateEnemy(e,dt);
@@ -1055,7 +1057,7 @@ function updateGround(dt){
  for(const p of G.projs){ const steps=3; for(let s=0;s<steps&&p.life>0;s++){ p.x+=p.vx*dt/steps; p.y+=p.vy*dt/steps;
    if(losSolid(p.x,p.y)){ p.life=0; if(p.splash) explode(p.x-p.vx*0.01,p.y-p.vy*0.01,p.splash,40,true); else particles(p.x-p.vx*0.02,p.y-p.vy*0.02,p.z,6,'spark',2,0.03,0.3); break; }
    if(p.own==='e'){ if(Math.hypot(p.x-G.px,p.y-G.py)<0.35){ p.life=0; hurtPlayer(p.dmg); } }
-   else for(const e of G.enemies){ if(!e.dead&&Math.hypot(p.x-e.x,p.y-e.y)<e.r+0.18){ p.life=0; damageEnemy(e,p.dmg,p.vx/10,p.vy/10,true); explode(p.x,p.y,p.splash,40,true); particles(p.x,p.y,p.z,15,'psy',3,0.04,0.5); break; } }
+   else for(const e of G.enemies){ if(!e.dead&&Math.hypot(p.x-e.x,p.y-e.y)<e.r+0.18){ p.life=0; damageEnemy(e,p.dmg,p.vx/10,p.vy/10,true); explode(p.x,p.y,p.splash,pDmg(40),true); particles(p.x,p.y,p.z,15,'psy',3,0.04,0.5); break; } }
   } p.life-=dt; if(p.own==='p'&&Math.random()<0.6) particles(p.x,p.y,p.z,1,'psy',0.5,0.03,0.3); }
  G.projs=G.projs.filter(p=>p.life>0);
  // частицы
@@ -1068,10 +1070,10 @@ function updateGround(dt){
   let ok=true;
   switch(it.type){
    case 'health': if(P.hp>=100) ok=false; else {const n=pickAmt(30,it.small);P.hp=Math.min(100,P.hp+n);msg('+'+n+' здоровья');} break;
-   case 'ammo': if(P.ammo>=250) ok=false; else {const n=pickAmt(40,it.small);P.ammo=Math.min(250,P.ammo+n);msg('+'+n+' варп-заряда');} break;
+   case 'ammo': if(P.ammo>=250) ok=false; else {const n=pickAmt(40,it.small);P.ammo=Math.min(250,P.ammo+n);P.fb=0;msg('+'+n+' варп-заряда');} break;
    case 'mana': if(P.mana>=100) ok=false; else {const n=pickAmt(40,it.small);P.mana=Math.min(100,P.mana+n);msg('+'+n+' маны');} break;
    case 'armor': if(P.ar>=100) ok=false; else {const n=pickAmt(50,false);P.ar=Math.min(100,P.ar+n);msg('+'+n+' брони');} break;
-   case 'shotgun': P.w[2]=true; P.cur=2; P.ammo=Math.min(250,P.ammo+20); msg('Постигнута сила: ДИСКИ ТЗИНЧА! [2]'); break;
+   case 'shotgun': P.w[2]=true; P.cur=2; P.ammo=Math.min(250,P.ammo+20); P.fb=0; msg('Постигнута сила: ДИСКИ ТЗИНЧА! [2]'); break;
   }
   if(ok){ it.taken=true; G.pick=0.4; Snd.play(it.type==='mana'?'mpick':'pickup',1); } } }
  G.pickups=G.pickups.filter(i=>!i.taken);
@@ -1346,11 +1348,11 @@ const Space={S:null,spr:{},bg:null,
   const mvx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0), mvy=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
   const sp=(keys.ShiftLeft||keys.ShiftRight)?200:140; sh.x=clamp(sh.x+mvx*sp*dt,20,W-40); sh.y=clamp(sh.y+mvy*sp*dt,12,H-24);
   sh.cd-=dt; sh.mcd-=dt; sh.inv-=dt; P.mana=Math.min(100,P.mana+3*d.regen*dt);
-  if((mouseDown||keys.Space)&&sh.cd<=0){ sh.cd=0.1; const ys=sh.power>=1?[-3,3]:[0]; ys.forEach(o=>S.bul.push({x:sh.x+30,y:sh.y+o,vx:430,vy:0,dmg:8}));
-   if(sh.power>=2){S.bul.push({x:sh.x+26,y:sh.y-5,vx:410,vy:-70,dmg:6});S.bul.push({x:sh.x+26,y:sh.y+5,vx:410,vy:70,dmg:6});}
-   if(sh.power>=3){S.bul.push({x:sh.x+20,y:sh.y-6,vx:380,vy:-150,dmg:6});S.bul.push({x:sh.x+20,y:sh.y+6,vx:380,vy:150,dmg:6});}
+  if((mouseDown||keys.Space)&&sh.cd<=0){ sh.cd=0.1; const ys=sh.power>=1?[-3,3]:[0]; ys.forEach(o=>S.bul.push({x:sh.x+30,y:sh.y+o,vx:430,vy:0,dmg:pDmg(8)}));
+   if(sh.power>=2){S.bul.push({x:sh.x+26,y:sh.y-5,vx:410,vy:-70,dmg:pDmg(6)});S.bul.push({x:sh.x+26,y:sh.y+5,vx:410,vy:70,dmg:pDmg(6)}); }
+   if(sh.power>=3){S.bul.push({x:sh.x+20,y:sh.y-6,vx:380,vy:-150,dmg:pDmg(6)});S.bul.push({x:sh.x+20,y:sh.y+6,vx:380,vy:150,dmg:pDmg(6)});}
    Snd.play('heavy',0.35); }
-  if((rmb||keys.KeyQ||keys.Digit3)&&sh.mcd<=0&&P.mana>=25){ P.mana-=25; sh.mcd=0.6; S.bul.push({x:sh.x+30,y:sh.y,vx:250,vy:0,dmg:60,psy:true,life:3}); Snd.play('psy',1); }
+  if((rmb||keys.KeyQ||keys.Digit3)&&sh.mcd<=0&&P.mana>=25){ P.mana-=25; sh.mcd=0.6; S.bul.push({x:sh.x+30,y:sh.y,vx:250,vy:0,dmg:pDmg(60),psy:true,life:3}); Snd.play('psy',1); }
   // спавн
   if(S.phase==='waves'){ S.spawnT-=dt; if(S.spawnT<=0){ this.spawnWave(); S.spawnT=rand(1.4,2.4)/(d.spd*(1+0.2*S.si)); }
    if(S.t>=S.L.duration){ S.phase='boss'; this.spawnBoss(); msg('Внимание! Крупная цель!'); } }
@@ -1369,9 +1371,10 @@ const Space={S:null,spr:{},bg:null,
    if(B.cd<=0&&B.x<W){ B.pat=(B.pat+1)%3; B.cd=(enr?1.0:1.5)/d.spd; const a=Math.atan2(sh.y-B.y,sh.x-B.x);
     if(B.pat===0){ const n=(B.big?7:5)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++) this.eshot(B.x-B.rx,B.y,a+(k-(n-1)/2)*0.15,160*d.spd,1.3); Snd.play('eshot',0.8); }
     else if(B.pat===1){ const n=(B.big?20:14)+(d.extra>=3?4:d.extra>=2?2:0); for(let k=0;k<n;k++) this.eshot(B.x,B.y,k/n*Math.PI*2+B.t,110*d.spd,1.2,'#88ddff'); Snd.play('fireball',0.8); }
-    else { const n=(B.big?3:2)+(d.extra>=3?2:d.extra>=2?1:0); for(let k=0;k<n;k++){ S.en.push({type:'inter',x:B.x-20,y:B.y+(k-n/2)*20,y0:0,t:0,hp:12*this.hpm(),r:8,spr:'inter',cd:9,flash:0,vx:-200}); G.total++; } Snd.play('growl',0.5); }
+    else { B.tel=0.7; B.addN=(B.big?3:2)+(d.extra>=3?2:d.extra>=2?1:0); B.flash=0.7; Snd.play('roar',1); }
     if(B.big&&enr&&Math.random()<0.5){ for(let k=0;k<5;k++) G.timers.push({t:k*0.12,fn:()=>{ if(B.hp>0) this.eshot(B.x-B.rx,B.y,Math.atan2(sh.y-B.y,sh.x-B.x),220*d.spd,1,'#ffffff'); }}); }
    }
+   if(B.tel>0){ B.tel-=dt; B.flash=Math.max(B.flash,0.16); if(Math.random()<dt*10) S.fx.push({x:B.x+rand(-B.rx,B.rx)*0.6,y:B.y+rand(-B.ry,B.ry)*0.6,vx:rand(-30,30),vy:rand(-30,30),life:0.45,col:'#88ddff'}); if(B.tel<=0){ const n=B.addN||2; for(let k=0;k<n;k++){ S.en.push({type:'inter',x:B.x-20,y:B.y+(k-n/2)*20,y0:0,t:0,hp:12*this.hpm(),r:8,spr:'inter',cd:9,flash:0,vx:-200}); G.total++; } Snd.play('growl',0.5); } }
    for(const t of G.timers){ t.t-=dt; if(t.t<=0&&!t.done){t.done=true;t.fn();} } G.timers=G.timers.filter(t=>!t.done);
    if(((sh.x+10-B.x)/B.rx)**2+((sh.y-B.y)/B.ry)**2<1) this.hurt(25);
   }
@@ -1442,7 +1445,7 @@ function stageComplete(){
  const next=G.stage+1; const L=LEVELS[G.stage];
  const t=G.lvlTime|0; $('dnTitle').textContent=(L.type==='space'?'ПРОРЫВ УДАЛСЯ':'УРОВЕНЬ ПРОЙДЕН')+': '+L.name;
  $('dnStats').innerHTML=`<div class="stat">Убито врагов: <b>${G.kills}${L.type==='ground'?' / '+G.total:''}</b></div><div class="stat">Время: <b>${(t/60|0)}:${String(t%60).padStart(2,'0')}</b></div><div class="stat">Сложность: <b>${D().name}</b></div>`+(next<LEVELS.length?`<div class="stat" style="color:#a08060">Далее: ${LEVELS[next].name}</div>`:'');
- if(next<LEVELS.length){ P.hp=Math.max(P.hp,50); P.mana=100; progress.unlocked=Math.max(progress.unlocked,next); progress.last=next; progress.snaps[next]=snapP(); saveProgress(); }
+ if(next<LEVELS.length){ restoreBetween(); progress.unlocked=Math.max(progress.unlocked,next); progress.last=next; progress.snaps[next]=snapP(); saveProgress(); }
  show('scDone'); }
 function playerDie(){ if(G.state!=='play') return; G.state='dead'; unlock(); Snd.play('pdie',1);
  const L=LEVELS[G.stage]; $('deadText').textContent=L.type==='space'?'«Лазурный Коготь» разорван на части... но варп вернёт своего хозяина.':'Тьма поглощает Аримана... но Изменяющий Пути ещё не закончил свою игру.';
@@ -1483,7 +1486,7 @@ window.addEventListener('keydown',e=>{
  keys[e.code]=true;
  if(G.state==='intro'&&(e.code==='Enter'||e.code==='Space')){ startPlay(); return; }
  if(e.code==='Escape'||e.code==='KeyP'){ if(G.state==='play') pause(); else if(G.state==='pause') resume(); else if(G.state==='settings') closeSettings(); return; }
- if(G.state==='play'&&!isSpace()){ const n={Digit1:1,Digit2:2,Digit3:3}[e.code]; if(n&&P.w[n]&&P.cur!==n){P.cur=n;P.cd=Math.max(P.cd,0.2);Snd.play('click',0.6);} }
+ if(G.state==='play'&&!isSpace()){ const n={Digit1:1,Digit2:2,Digit3:3}[e.code]; if(n&&P.w[n]&&P.cur!==n){P.cur=n;P.fb=0;P.cd=Math.max(P.cd,0.2);Snd.play('click',0.6);} }
 });
 window.addEventListener('keyup',e=>{keys[e.code]=false;});
 window.addEventListener('blur',()=>{for(const k in keys) keys[k]=false; mouseDown=false; rmb=false;});
@@ -1493,7 +1496,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mousemove',e=>{ if(G.state!=='play'||document.pointerLockElement!==cv) return;
  if(isSpace()){ const sh=Space.S.ship; sh.x=clamp(sh.x+e.movementX*0.3*settings.sens,20,W-40); sh.y=clamp(sh.y+e.movementY*0.3*settings.sens,12,H-24); }
  else G.pa+=e.movementX*0.0025*settings.sens; });
-cv.addEventListener('wheel',e=>{ if(G.state!=='play'||isSpace()) return; const own=[1,2,3].filter(n=>P.w[n]); let i=own.indexOf(P.cur); i=(i+(e.deltaY>0?1:-1)+own.length)%own.length; P.cur=own[i]; e.preventDefault(); },{passive:false});
+cv.addEventListener('wheel',e=>{ if(G.state!=='play'||isSpace()) return; const own=[1,2,3].filter(n=>P.w[n]); let i=own.indexOf(P.cur); i=(i+(e.deltaY>0?1:-1)+own.length)%own.length; P.cur=own[i];P.fb=0; e.preventDefault(); },{passive:false});
 document.addEventListener('pointerlockchange',()=>{ if(document.pointerLockElement===cv) G.hadLock=true; else if(G.state==='play'&&G.hadLock) pause(); });
 
 // ---------- HUD ----------

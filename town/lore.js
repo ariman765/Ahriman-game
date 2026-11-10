@@ -161,3 +161,15 @@ window.LORE.EXTRA_NPCS = {
     { arch: 'al', name: 'Альфа-легионер «Я тоже Альфарий»', near: 'парящие острова', lines: ['Меня здесь нет.', 'Я — Альфарий. И он тоже.'], ai: 'wander' }
   ]
 };
+
+// Нефритта — жительница кельи (home). Особые реплики для персонажа с именем «Готфрид».
+window.LORE.HOME_NPC = {
+  arch: 'slaanesh', name: 'Нефритта', ai: 'wander', near: 'у кровати',
+  look: { hair: 'long', hairC: '#bfe3ff', horns: '#3a7bd5', ears: 'elf', earring: '#e0303a', glasses: 'round', marks: '#4aa8ff', blush: true, jacket: '#141414', dress: '#4a2340', tail: '#d8304a', tailTip: 'heart' },
+  lines: ['Добро пожаловать в келью!', 'Я тут прибралась, нравится?', 'Варп сегодня спокойный, можно отдохнуть.'],
+  owner: 'Готфрид',
+  onlyOwner: true, // показывать только в келье игрока с именем «Готфрид»
+  showFor(name) { return !this.onlyOwner || (name || '').trim().toLowerCase() === this.owner.toLowerCase(); },
+  ownerLines: ['Готфрид, ты вернулся! Я ждала 💙', 'Сегодня я только твоя 😊', 'Садись рядом, я согрею тебе чай.', 'Хвостик сам виляет, когда ты здесь…', 'Покажешь мне новое заклинание?'],
+  linesFor(name) { return (name || '').trim().toLowerCase() === this.owner.toLowerCase() ? this.ownerLines : this.lines; }
+};

@@ -221,6 +221,7 @@
     const m = MAPS[G.mapId];
     G.npcs = m.npcs.map((d, i) => { const L = cleanLook(Object.assign(A.defaultLook(d.arch), d.tweak)); const e = mkEnt({ id: 'npc' + i, npc: true, name: d.name, look: L, x: (d.x + .5) * TS, y: (d.y + .7) * TS, dir: d.dir || 'down', def: d, ai: d.ai, aiT: 1 + Math.random() * 3, talkT: 6 + Math.random() * 14 });
       e.rx = e.x; e.ry = e.y; if (d.ai === 'sit') e.sit = true; return e; });
+    if (m.private) homeNpcSync();
   }
   function canStand(m, x, y) { const r = 6; for (const [dx, dy] of [[-r, -3], [r, -3], [-r, 2], [r, 2]]) if (blocked(m, Math.floor((x + dx) / TS), Math.floor((y + dy) / TS))) return false; return true; }
   function moveEnt(e, dx, dy, m) {
@@ -231,7 +232,8 @@
     e.talkT -= dt;
     npcReact(e);
     if (e.talkT <= 0) { e.talkT = 18 + Math.random() * 25; const ll = loreLines(e); if (Math.random() < .75) { const pool = ll.length && Math.random() < .45 ? ll : e.def.lines; setBubble(e, pool[Math.random() * pool.length | 0]); } else setEmote(e, A.EMO_ORDER[Math.random() * 8 | 0]); }
-    if (e.ai === 'wander' || e.ai === 'pace') {
+    if (e.def && e.def.home) homeNpcWalk(e, dt, m);
+    else if (e.ai === 'wander' || e.ai === 'pace') {
       e.aiT -= dt;
       if (e.tgt) { const dx = e.tgt.x - e.x, dy = e.tgt.y - e.y, d = Math.hypot(dx, dy);
         if (d < 2 || e.aiT < -6) { e.tgt = null; e.anim = 'idle'; e.aiT = 2 + Math.random() * 4; }
@@ -248,14 +250,16 @@
   }
 
   // ---------- карта / вход ----------
-  function enterMap(id, x, y, silent) {
-    G.mapId = id; const m = MAPS[id]; buildFloor(m);
+  function enterMap(id, x, y, silent, room) {
+    G.mapId = id; const m = MAPS[id]; G.room = m.private && room && room !== 'home' ? room : null;
+    if (m.private) { if (G.room) { const oid = G.room.slice(5); let hv = null; try { hv = N && N.homeOf ? N.homeOf(oid) : null; } catch (e) {} if (!(hv != null && Home.visit(hv, G.known[oid] || 'гость'))) Home.visit(HOME_EMPTY, G.known[oid] || 'гость'); } else Home.leaveVisit(); } else if (Home.owner()) Home.leaveVisit();
+    buildFloor(m);
     G.me.x = G.me.rx = x * TS; G.me.y = G.me.ry = y * TS; G.me.sit = false; G.path = null;
     G.others = {}; G.parts = []; if (m.private) Home.apply(); else if (G.build) buildOff(); spawnNpcs(); G.portalLock = true;
     if (G.me.comp) { G.me.comp.x = G.me.x; G.me.comp.y = G.me.y - 30; }
     closeTele(); G.onPad = false; $('hTele').classList.add('hidden');
     snapCam(); G.banner = { text: m.name, t0: G.t };
-    if (!silent) { netCall('goMap', id); netCall('sit', false); }
+    if (!silent) { netCall('goMap', G.room || id); netCall('sit', false); }
     sendMove(true); syncOthers(); updateHud();
   }
   // ---------- мир для хоста (net.js v2): спавны и площадки в пикселях ----------
@@ -270,28 +274,35 @@
   function registerWorld() { try { if (N && typeof N.setWorld === 'function') { const w = worldSpec(); w.maps.home = homeSpec(); N.setWorld(w); } } catch (e) { console.warn('Net.setWorld', e); } }
   // ---------- телепорт ----------
   function teleportTo(id) {
-    if (!G.me || !MAPS[id] || id === G.mapId || G.fade > 0) return false;
-    const t = MAPS[id].tele;
-    G.prevMap = { id: G.mapId, x: G.me.x, y: G.me.y };
+    const room = /^home:./.test(String(id)) ? String(id) : null, mid = room ? 'home' : id;
+    if (!G.me || !MAPS[mid] || G.fade > 0) return false;
+    if (room ? room === G.room || room === 'home:' + myId() && G.mapId === 'home' && !G.room : (id === G.mapId && !G.room)) return false;
+    const t = MAPS[mid].tele;
+    G.prevMap = { id: G.mapId, x: G.me.x, y: G.me.y, room: G.room };
     sendMove(true);
-    closeTele(); G.fade = .001; G.fadeTo = { to: id, tx: t.sx, ty: t.sy }; G.portalLock = true;
+    closeTele(); G.fade = .001; G.fadeTo = { to: mid, tx: t.sx, ty: t.sy, room: room && room !== 'home:' + myId() ? room : null }; G.portalLock = true;
     return true;
   }
   function teleDenied(msg) {
     sysLine(msg || 'Телепорт не сработал: встань на площадку и попробуй ещё раз.', 'err');
     const p = G.prevMap; G.prevMap = null;
-    if (p && G.me && G.mapId !== p.id) { enterMap(p.id, p.x / TS, p.y / TS, true); return; }
+    if (p && G.me && (G.mapId !== p.id || G.room !== (p.room || null))) { enterMap(p.id, p.x / TS, p.y / TS, true, p.room); return; }
     let nm = null; try { nm = N.me && N.me(); } catch (e) {}
     if (G.me && nm && nm.map && MAPS[nm.map] && nm.map !== G.mapId) enterMap(nm.map, (+nm.x || MAPS[nm.map].tele.sx * TS) / TS, (+nm.y || MAPS[nm.map].tele.sy * TS) / TS, true);
   }
   function buildTeleList() {
     const box = $('teleList'); box.textContent = '';
+    const fr = visitList();
     MAP_ORDER.concat(['home']).forEach((id, i) => { const m = MAPS[id]; if (!m) return;
-      const b = document.createElement('button'); b.className = 'tl' + (id === G.mapId ? ' here' : ''); b.dataset.map = id; b.style.setProperty('--i', i);
-      const n = document.createElement('b'); n.textContent = m.name; b.appendChild(n);
+      const here = id === G.mapId && !G.room;
+      const b = document.createElement('button'); b.className = 'tl' + (here ? ' here' : ''); b.dataset.map = id; b.style.setProperty('--i', i);
+      const n = document.createElement('b'); n.textContent = id === 'home' ? 'Моя келья' : m.name; b.appendChild(n);
       if (id === 'home') b.classList.add('homeTl');
-      const d = document.createElement('small'); d.textContent = id === G.mapId ? 'Ты здесь' : (m.desc || ''); b.appendChild(d);
-      b.disabled = id === G.mapId; b.onclick = () => teleportTo(id); box.appendChild(b); });
+      const d = document.createElement('small'); d.textContent = here ? 'Ты здесь' : (m.desc || ''); b.appendChild(d);
+      b.disabled = id === G.mapId && !G.room; b.onclick = () => teleportTo(id); box.appendChild(b); });
+    fr.forEach((f, i) => { const room = 'home:' + f.id, b = document.createElement('button'); b.className = 'tl homeTl friendTl' + (G.room === room ? ' here' : ''); b.dataset.map = room; b.style.setProperty('--i', 11 + i);
+      const n = document.createElement('b'); n.textContent = 'Келья: ' + f.name; b.appendChild(n); const d = document.createElement('small'); d.textContent = G.room === room ? 'Ты здесь' : 'Тебя пригласили в гости'; b.appendChild(d);
+      b.disabled = G.room === room; b.onclick = () => teleportTo(room); box.appendChild(b); });
   }
   function openTele() { if (!G.me || G.state !== 'play') return; buildTeleList(); G.teleOpen = true; const t = $('tele'); t.classList.add('open'); t.setAttribute('aria-hidden', 'false'); }
   function closeTele() { G.teleOpen = false; const t = $('tele'); if (t) { t.classList.remove('open'); t.setAttribute('aria-hidden', 'true'); } }
@@ -322,8 +333,9 @@
     const seen = {}, self = myId();
     for (const p of arr) {
       if (!p || p.id == null || p.id === self) continue;
-      if (p.map && p.map !== G.mapId) continue;
-      if (MAPS[G.mapId] && MAPS[G.mapId].private) continue; // келья приватна: чужих в своей келье не видно
+      if (p.name) G.known[p.id] = String(p.name).slice(0, 24);
+      if (p.map && p.map !== G.mapId && p.map !== curRoom()) continue;
+      if (MAPS[G.mapId] && MAPS[G.mapId].private && !netRooms()) continue; // старый net.js без отдельных келий: в келье чужих не видно
       seen[p.id] = 1;
       let e = G.others[p.id];
       const x = +p.x || 0, y = +p.y || 0;
@@ -342,14 +354,14 @@
   function entById(id) { if (id != null && id === myId()) return G.me; return G.others[id]; }
   let bound = false;
   function bindNet() {
-    if (bound || !N) return; bound = true;
+    if (bound || !N) return; bound = true; homeNetInit();
     N.on('players', () => syncOthers());
     try { N.on('typing', m => { if (m && m.id !== myId()) setTyping(entById(m.id), m.typing, 'field'); }); } catch (x) {}
-    N.on('chat', m => { if (!m) return; if (MAPS[G.mapId].private && m.id !== myId()) return; const e = entById(m.id); if (e && e !== G.me) e.typingOn = false; if (e) setBubble(e, m.text); logLine(m.name || (e && e.name) || '?', m.text, e === G.me ? 'me' : ''); });
+    N.on('chat', m => { if (!m) return; if (MAPS[G.mapId].private && !netRooms() && m.id !== myId()) return; const e = entById(m.id); if (e && e !== G.me) e.typingOn = false; if (e) setBubble(e, m.text); logLine(m.name || (e && e.name) || '?', m.text, e === G.me ? 'me' : ''); });
     N.on('emote', m => { if (!m) return; const e = entById(m.id); if (e) setEmote(e, String(m.emote)); });
     N.on('joined', m => { if (m && m.id !== myId()) sysLine((m.name || 'Кто-то') + ' входит в мир'); });
     N.on('left', m => { if (m) { sysLine((m.name || 'Кто-то') + ' покидает мир'); delete G.others[m.id]; renderPlayerList(); } });
-    N.on('error', m => { if (m && m.code === 'spell-denied') { sysLine(m.message || 'Это заклинание недоступно.', 'err'); return; } if (m && m.code === 'teleport-denied') { teleDenied('Телепорт отказал: ' + (m.message || 'встань на площадку.')); return; } const t = (m && m.message) || 'Ошибка сети'; if (G.state === 'play') sysLine(t, 'err'); else menuStatus(t); });
+    N.on('error', m => { if (m && m.code === 'home-closed') { sysLine(m.message || 'Келья закрыта.', 'err'); homeClosed(); return; } if (m && (m.code === 'spell-denied' || m.code === 'spell-cooldown' || m.code === 'home-too-big')) { sysLine(m.message || 'Это заклинание недоступно.', 'err'); return; } if (m && m.code === 'teleport-denied') { teleDenied('Телепорт отказал: ' + (m.message || 'встань на площадку.')); return; } const t = (m && m.message) || 'Ошибка сети'; if (G.state === 'play') sysLine(t, 'err'); else menuStatus(t); });
     N.on('disconnected', m => { if (G.state === 'play') { G.mode = null; toMenu(); menuStatus((m && m.message) || 'Соединение потеряно.'); } });
   }
   async function start(mode, code) {
@@ -426,6 +438,7 @@
     if (G.build) { buildClick(Math.floor((e.clientX / SCALE + Math.round(G.cam.x)) / TS), Math.floor((e.clientY / SCALE + Math.round(G.cam.y)) / TS), e.button === 2); return; }
     const wx = e.clientX / SCALE + Math.round(G.cam.x), wy = e.clientY / SCALE + Math.round(G.cam.y);
     const m = MAPS[G.mapId]; let tx = Math.floor(wx / TS), ty = Math.floor(wy / TS);
+    const hn = m.private && homeNpc(); if (hn && Math.abs(wx - hn.x) < 10 && wy > hn.y - 40 && wy < hn.y + 4) { if (Math.hypot(hn.x - G.me.x, hn.y - G.me.y) < 64) { homeNpcTalk(); return; } }
     const p = findPath(m, Math.floor(G.me.x / TS), Math.floor(G.me.y / TS), tx, ty);
     if (p) { G.path = p.path; G.sitOnArrive = SEAT.has(tileAt(m, p.end[0], p.end[1])) && p.end[0] === tx && p.end[1] === ty; if (G.me.sit) toggleSit(false); G.click = { x: (p.end[0] + .5) * TS, y: (p.end[1] + .5) * TS, t0: G.t }; }
   });
@@ -463,7 +476,7 @@
       else if (!G.portalLock && G.fade <= 0) { G.portalLock = true; openTele(); }
       sendMove(false);
     }
-    if (G.fade > 0) { G.fade += dt * 3.5; if (G.fadeTo && G.fade >= 1) { const p = G.fadeTo; G.fadeTo = null; enterMap(p.to, p.tx, p.ty); sysLine('Телепортация: ' + MAPS[p.to].name + '.'); } if (G.fade >= 2) G.fade = 0; }
+    if (G.fade > 0) { G.fade += dt * 3.5; if (G.fadeTo && G.fade >= 1) { const p = G.fadeTo; G.fadeTo = null; enterMap(p.to, p.tx, p.ty, false, p.room); sysLine('Телепортация: ' + (p.room ? 'келья ' + (G.known[p.room.slice(5)] || 'друга') : MAPS[p.to].name) + '.'); } if (G.fade >= 2) G.fade = 0; }
     for (const id in G.others) { const e = G.others[id]; const k = Math.min(1, dt * 10); e.rx += (e.x - e.rx) * k; e.ry += (e.y - e.ry) * k; if (e.anim === 'walk' || Math.hypot(e.x - e.rx, e.y - e.ry) > 1.5) e.walkT += dt; }
     // компаньоны-сервочерепа
     for (const e of allEnts()) { if (!(e.look.acc || []).includes('skull')) { e.comp = null; continue; } if (!e.comp) e.comp = { x: e.rx, y: e.ry - 30 }; const side = e.dir === 'left' ? 16 : e.dir === 'right' ? -16 : 15, back = e.dir === 'up' ? 6 : e.dir === 'down' ? -4 : 0; const tx = e.rx + side, ty = e.ry + back; const k = Math.min(1, dt * 3); e.comp.x += (tx - e.comp.x) * k; e.comp.y += (ty - e.comp.y) * k; }
@@ -531,7 +544,7 @@
   function drawEnt(e, cx, cy, m) {
     const gp = gestOf(e), pose = gp ? 'g:' + gp : poseOf(e), frame = gp ? Math.floor(G.t * 4) % 2 : pose === 'walk' ? Math.floor(e.walkT * 8) % 4 : Math.floor(G.t * 1.6 + e.seed) % 2;
     const blink = ((G.t + e.seed * 3) % 3.7) < .12;
-    const s = A.sprite(e.look, e.dir, pose, frame, blink);
+    const s = e.custom && A.customSprite ? A.customSprite(e.custom, e.dir, pose, frame, blink) : A.sprite(e.look, e.dir, pose, frame, blink);
     const seat = e.sit && SEAT.has(tileAt(m, Math.floor(e.rx / TS), Math.floor(e.ry / TS))) ? -3 : 0;
     const x = Math.round(e.rx - cx), y = Math.round(e.ry - cy);
     bg.fillStyle = 'rgba(10,6,20,.35)'; bg.beginPath(); bg.ellipse(x, y, 12, 4, 0, 0, 7); bg.fill();
@@ -630,7 +643,7 @@
   function updateHud() {
     if (!G.me) return; const m = MAPS[G.mapId];
     $('hLoc').textContent = m.name;
-    if ($('hBuild')) $('hBuild').classList.toggle('hidden', !m.private);
+    if ($('hBuild')) $('hBuild').classList.toggle('hidden', !m.private || !!G.room);
     const online = G.mode && G.mode !== 'offline';
     $('hRoom').textContent = online ? 'Комната ' + (G.code || '') + (N.isHost && N.isHost() ? ' · ты хост' : '') : 'Одиночная игра';
     $('hCopy').style.display = online ? '' : 'none';
@@ -640,7 +653,9 @@
     const box = $('plist'); if (!box || !G.me) return; box.textContent = '';
     const add = (name, cls, sub) => { const d = document.createElement('div'); d.className = 'pl ' + (cls || ''); const n = document.createElement('span'); n.textContent = name; d.appendChild(n); if (sub) { const s = document.createElement('small'); s.textContent = sub; d.appendChild(s); } box.appendChild(d); };
     add(G.me.name, 'me', 'ты');
-    const ids = Object.keys(G.others); for (const id of ids) add(G.others[id].name, '', A.FACTIONS[G.others[id].look.faction] ? A.FACTIONS[G.others[id].look.faction].name : '');
+    const ids = Object.keys(G.others); for (const id of ids) { add(G.others[id].name, '', A.FACTIONS[G.others[id].look.faction] ? A.FACTIONS[G.others[id].look.faction].name : '');
+      if (netRooms() && G.mode && G.mode !== 'offline' && typeof N.homeInvite === 'function') { const row = box.lastChild, ib = mkBtn('', 'В келью', 'Пригласить в свою келью', ev => { ev.stopPropagation(); if (N.homeInvite(id)) sysLine('Приглашение в келью отправлено: ' + G.others[id].name + '.'); }, 'b2 mini inv'); ib.dataset.inv = id; row.appendChild(ib); } }
+    homeAccessUI(box);
     $('pcount').textContent = String(1 + ids.length);
   }
   function logAdd(nodes, cls) { const d = document.createElement('div'); d.className = 'ln ' + (cls || ''); nodes.forEach(n => d.appendChild(n)); const L = $('log'); L.appendChild(d); while (L.children.length > 60) L.removeChild(L.firstChild); L.scrollTop = L.scrollHeight; }
@@ -895,8 +910,8 @@
   // ======================= РЕАКЦИИ NPC (LORE.attitude / LORE.lines) =======================
   const ATT_COL = { friend: '#7dff8a', neutral: '#b8c4dc', wary: '#ffd86a', hostile: '#ff6a5a' }, ATT_SYM = { friend: '+', wary: '?', hostile: '!' };
   function npcFac(e) { if (e._fac === undefined) { let f = null; try { f = A.resolveFaction(e.def.faction || e.def.arch); } catch (x) {} e._fac = f || e.look.faction; } return e._fac; }
-  function npcAtt(e) { if (!window.LORE || typeof LORE.attitude !== 'function' || !G.me || !e.def) return null; const k = G.look.faction + '|' + G.look.side; if (e._attK !== k) { e._attK = k; try { e._att = LORE.attitude(npcFac(e), G.look) || null; } catch (x) { e._att = null; } } return e._att; }
-  function loreLines(e) { if (!window.LORE || typeof LORE.lines !== 'function' || !G.me || !e.def) return []; try { const l = LORE.lines(npcFac(e), G.look); return Array.isArray(l) ? l : []; } catch (x) { return []; } }
+  function npcAtt(e) { if (e.def && e.def.home) return 'friend'; if (!window.LORE || typeof LORE.attitude !== 'function' || !G.me || !e.def) return null; const k = G.look.faction + '|' + G.look.side; if (e._attK !== k) { e._attK = k; try { e._att = LORE.attitude(npcFac(e), G.look) || null; } catch (x) { e._att = null; } } return e._att; }
+  function loreLines(e) { if (e.def && e.def.home) return homeNpcLines(); if (!window.LORE || typeof LORE.lines !== 'function' || !G.me || !e.def) return []; try { const l = LORE.lines(npcFac(e), G.look); return Array.isArray(l) ? l : []; } catch (x) { return []; } }
   function npcReact(e) {
     if (!G.me || G.state !== 'play' || G.fade > 0) return;
     const d = Math.hypot(e.x - G.me.x, e.y - G.me.y);
@@ -1099,6 +1114,7 @@ html.touch-ui #b2bar{position:absolute;left:10px;top:calc(66px + env(safe-area-i
     props.sort((a, b) => a.key - b.key); m.props = props; m.lights = lights; m.emit = emit;
     if (G.homeFloor !== H.cur.f) { G.homeFloor = H.cur.f; m.floor = null; }
     m.name = H.owner ? 'Келья: ' + H.owner : 'Моя келья';
+    if (G.mapId === 'home' && G.npcs) homeNpcSync();
   }
   function homeCommit(L, opts) {
     const n = normLayout(L); if (!n) return false; opts = opts || {};
@@ -1198,6 +1214,116 @@ html.touch-ui #b2bar{position:absolute;left:10px;top:calc(66px + env(safe-area-i
   };
   window.Home = Home;
 
+  // ======================= v5: НЕФРИТТА В КЕЛЬЕ (LORE.HOME_NPC) =======================
+  // Появляется, только если LORE.HOME_NPC.showFor(<имя ХОЗЯИНА кельи>) — true; при onlyOwner без showFor — не появляется.
+  function homeNpcDef() { const L = window.LORE, d = L && L.HOME_NPC; return d && typeof d === 'object' && d.name ? d : null; }
+  function homeOwnerName() { if (H.owner != null) return H.owner; return (G.me && G.me.name) || G.nick || ''; }
+  function homeNpcShow(ownerName) {
+    const d = homeNpcDef(); if (!d) return false; const nm = ownerName != null ? ownerName : homeOwnerName();
+    if (typeof d.showFor === 'function') { try { return !!d.showFor.call(d, nm); } catch (e) { return false; } }
+    return !d.onlyOwner;
+  }
+  function homeNpcLines() {
+    const d = homeNpcDef(); if (!d) return []; const pn = (G.me && G.me.name) || G.nick || '';
+    let l = null; try { if (typeof d.linesFor === 'function') l = d.linesFor.call(d, pn); else if (window.LORE && typeof LORE.linesFor === 'function') l = LORE.linesFor(pn); } catch (e) { l = null; }
+    l = Array.isArray(l) && l.length ? l : d.lines; return Array.isArray(l) ? l.filter(s => typeof s === 'string' && s) : [];
+  }
+  const homeNpc = () => G.npcs.find(e => e.def && e.def.home) || null;
+  function hReserved(m) { // клетки, где ей стоять нельзя: площадка, спавн и клетка перед ним
+    const t = m.tele, r = new Set(); if (!t) return r;
+    for (let y = t.y - 1; y <= t.y + t.h; y++) for (let x = t.x - 1; x <= t.x + t.w; x++) r.add(x + ',' + y);
+    const sx = Math.floor(t.sx), sy = Math.floor(t.sy); for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) r.add((sx + dx) + ',' + (sy + dy));
+    return r;
+  }
+  function homeFreeTiles(m) {
+    const res = hReserved(m), out = [];
+    for (let y = HB.y0; y <= HB.y1; y++) for (let x = HB.x0; x <= HB.x1; x++) { if (res.has(x + ',' + y) || blocked(m, x, y)) continue; const c = tileAt(m, x, y); if (SEAT.has(c)) continue; if (H.cur && H.cur.i.some(q => q[1] === x && q[2] === y && HITEMS[q[0]][1] !== 'floor')) continue; out.push([x, y]); }
+    return out;
+  }
+  function homeNpcTile(e) { // цель прогулки: чаще «у кровати» (near), иначе любая свободная клетка
+    const m = MAPS.home, free = homeFreeTiles(m); if (!free.length) return null;
+    const d = e && e.def || homeNpcDef() || {};
+    if (/кроват|койк|bed/i.test(d.near || '') && Math.random() < .45 && H.cur) { const beds = H.cur.i.filter(q => q[0] === 'bd'); if (beds.length) { const b = beds[Math.random() * beds.length | 0]; const nb = free.filter(([x, y]) => Math.abs(x - b[1]) + Math.abs(y - b[2]) <= 2); if (nb.length) return nb[Math.random() * nb.length | 0]; } }
+    return free[Math.random() * free.length | 0];
+  }
+  function homeNpcPlace(e) { // поставить на свободную клетку (ближе к кровати), если текущая занята/зарезервирована
+    const m = MAPS.home, tx = Math.floor(e.x / TS), ty = Math.floor(e.y / TS), free = homeFreeTiles(m); if (!free.length) return false;
+    if (free.some(([x, y]) => x === tx && y === ty) && canStand(m, e.x, e.y)) return true;
+    let best = free[0], bd = 1e9; const bed = H.cur && H.cur.i.find(q => q[0] === 'bd'), ox = bed ? bed[1] : tx, oy = bed ? bed[2] : ty;
+    for (const f of free) { const dd = Math.abs(f[0] - ox) + Math.abs(f[1] - oy) + (bed ? 0 : 0); if (dd < bd && dd > 0) { bd = dd; best = f; } }
+    e.x = e.rx = (best[0] + .5) * TS; e.y = e.ry = (best[1] + .7) * TS; e.hpath = null; e.tgt = null; return true;
+  }
+  function homeNpcSync() { // спавн / деспавн при смене хозяина, перепроверка позиции после правки мебели
+    if (G.mapId !== 'home') return;
+    const cur = homeNpc(), show = homeNpcShow();
+    if (!show) { if (cur) G.npcs = G.npcs.filter(e => e !== cur); G.homeNpcFor = null; return; }
+    if (cur) { homeNpcPlace(cur); G.homeNpcFor = homeOwnerName(); return; }
+    const d = homeNpcDef(), def = { home: true, arch: d.arch || 'slaanesh', faction: d.faction || d.arch || 'slaanesh', name: String(d.name).slice(0, 24), ai: 'wander', near: d.near || '', lines: Array.isArray(d.lines) ? d.lines : [], x: 0, y: 0 };
+    let look; try { look = cleanLook(Object.assign(A.defaultLook(def.arch), d.tweak || {})); } catch (e) { look = cleanLook(A.defaultLook()); }
+    const e = mkEnt({ id: 'npcHome', npc: true, name: def.name, look, x: 0, y: 0, dir: 'down', def, ai: 'wander', aiT: 1 + Math.random() * 2, talkT: 8 + Math.random() * 10 });
+    e.custom = Object.assign({}, d.look || {}); e.x = (7.5) * TS; e.y = 3.7 * TS; homeNpcPlace(e); e.rx = e.x; e.ry = e.y;
+    G.npcs.push(e); G.homeNpcFor = homeOwnerName();
+  }
+  function homeNpcWalk(e, dt, m) { // прогулка по клеткам с поиском пути (не застревает в мебели)
+    e.aiT -= dt;
+    if (e.hpath && e.hpath.length) {
+      const p = e.hpath[0], dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy), sp = SPEED * .4 * dt;
+      if (d <= sp + .5) { e.x = p.x; e.y = p.y; e.hpath.shift(); if (!e.hpath.length) { e.anim = 'idle'; e.aiT = 2 + Math.random() * 4; } }
+      else { const ox = e.x, oy = e.y; moveEnt(e, dx / d * sp, dy / d * sp, m); if (Math.hypot(e.x - ox, e.y - oy) < sp * .2) { e.hpath = null; e.anim = 'idle'; e.aiT = 1; homeNpcPlace(e); } else { e.anim = 'walk'; e.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); } }
+      return;
+    }
+    if (e.aiT > 0) return;
+    const t = homeNpcTile(e); if (!t) { e.aiT = 2; return; }
+    const res = hReserved(m), p = findPath(m, Math.floor(e.x / TS), Math.floor(e.y / TS), t[0], t[1]);
+    if (p && p.path.length && !res.has(p.end[0] + ',' + p.end[1])) { e.hpath = p.path.map(q => ({ x: q.x, y: q.y + .1 * TS })); e.aiT = 0; } else e.aiT = 1 + Math.random() * 2;
+  }
+  function homeNpcTalk() { const e = homeNpc(); if (!e) return null; const ll = homeNpcLines(); const line = ll.length ? ll[Math.random() * ll.length | 0] : null; if (line) setBubble(e, line); e.reactT = G.t; e.talkT = Math.max(e.talkT, 8); e.hpath = null; e.anim = 'idle'; e.aiT = Math.max(e.aiT, 3);
+    if (G.me) { const dx = G.me.x - e.x, dy = G.me.y - e.y; e.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); }
+    if (A.EMO.wave) setEmote(e, 'wave'); G.lastReact = { id: e.id, name: e.name, att: 'friend', line, fac: 'slaanesh' }; return line; }
+
+  // ======================= v5: ГОСТИ В КЕЛЬЯХ (Net.setHome / событие 'home') =======================
+  const HOME_EMPTY = { v: 1, f: 0, i: [] };
+  G.known = {}; G.invites = {}; G.room = null;
+  const netRooms = () => !!(N && typeof N.setHome === 'function');
+  function curRoom() { if (G.mapId !== 'home') return G.mapId; return G.room || (myId() ? 'home:' + myId() : 'home'); }
+  function visitList() { // в чьи кельи можно сходить: кто пригласил + келья, где ты сейчас в гостях
+    if (!netRooms() || !G.mode || G.mode === 'offline') return [];
+    const me = myId(), out = {}, add = (id, name, inv) => { if (!id || id === me) return; out[id] = { id, name: name || G.known[id] || 'игрок', invited: !!(inv || (out[id] && out[id].invited)) }; };
+    for (const id in G.invites) add(id, G.invites[id], true);
+    if (G.room) add(G.room.slice(5), H.owner, false);
+    return Object.values(out).slice(0, 8);
+  }
+  function homeVisitInfo(h) { // событие 'home' {owner, name, home}
+    if (!h || !h.owner) return;
+    if (h.name) G.known[h.owner] = String(h.name).slice(0, 24);
+    if (h.owner === myId()) { if (G.mapId === 'home' && !G.room) { Home.leaveVisit(); homeNpcSync(); } return; }
+    if (G.mapId !== 'home' || G.room !== 'home:' + h.owner) return; // устаревшее событие
+    let ok = h.home != null && Home.visit(h.home, h.name || G.known[h.owner]);
+    if (!ok) Home.visit(HOME_DEF, h.name || G.known[h.owner]); // хозяин ещё не обустраивал — стартовая расстановка
+    if (G.build) buildOff(); homeNpcSync(); updateHud(); G.banner = { text: MAPS.home.name, t0: G.t };
+  }
+  function homeClosed() {
+    if (G.mapId !== 'home' || !G.room) return; G.room = null; Home.leaveVisit();
+    let nm = null; try { nm = N.me && N.me(); } catch (e) {}
+    const t = MAPS.hub.tele, x = nm && nm.map === 'hub' && isFinite(+nm.x) ? +nm.x / TS : t.sx, y = nm && nm.map === 'hub' && isFinite(+nm.y) ? +nm.y / TS : t.sy;
+    enterMap('hub', x, y, true);
+  }
+  function homeNetInit() {
+    if (!netRooms() || G._homeNet) return; G._homeNet = true;
+    Home.onChange(json => { try { N.setHome(json); } catch (e) {} });
+    try { N.setHome(Home.getLayout()); } catch (e) {}
+    N.on('home', homeVisitInfo);
+    N.on('homeinvite', m => { if (!m || !m.owner) return; G.invites[m.owner] = String(m.name || G.known[m.owner] || 'игрок').slice(0, 24); G.known[m.owner] = G.invites[m.owner]; sysLine((m.name || 'Кто-то') + ' приглашает тебя в свою келью — открой телепорт: «Келья: ' + G.invites[m.owner] + '».'); if (G.teleOpen) buildTeleList(); });
+  }
+  { const st = document.createElement('style'); st.textContent = '#plist .pl{display:flex;align-items:center;gap:6px}#plist .pl .mini{margin-left:auto;padding:1px 6px;font-size:11px;line-height:1.3;min-height:0}#plist #hAccess{display:block;width:100%;margin-top:6px;padding:3px 6px;font-size:11px}'; document.head.appendChild(st); }
+  const ACC_NAME = { invite: 'по приглашению', open: 'открыта для всех', private: 'закрыта' }, ACC_NEXT = { invite: 'open', open: 'private', private: 'invite' };
+  function homeAccessUI(box) { // кнопки в списке игроков: доступ к келье, пригласить
+    if (!netRooms() || !G.mode || G.mode === 'offline' || typeof N.setHomeAccess !== 'function') return;
+    const cur = (N.homeAccess && N.homeAccess()) || 'invite';
+    const b = mkBtn('hAccess', 'Келья: ' + ACC_NAME[cur], 'Кто может зайти в твою келью', () => { N.setHomeAccess(ACC_NEXT[cur] || 'invite'); setTimeout(renderPlayerList, 80); }, 'b2 mini');
+    box.appendChild(b);
+  }
+
   // ---------- цикл ----------
   buildFloor(MAPS.hub); spawnNpcs(); showScreen('menu');
   let last = performance.now(), fpsN = 0, fpsT = 0; G.fps = 0;
@@ -1208,7 +1334,7 @@ html.touch-ui #b2bar{position:absolute;left:10px;top:calc(66px + env(safe-area-i
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  Object.assign(window.__T, { start, enterMap, teleportTo, openTele, closeTele, worldSpec, homeSpec, openEditor, closeEditor, toggleSit, doEmote, syncOthers,
+  Object.assign(window.__T, { homeNpc, homeNpcShow, homeNpcSync, homeNpcTalk, homeNpcLines, homeFreeTiles, hReserved, homeVisitInfo, homeClosed, visitList, curRoom, netRooms, H, start, enterMap, teleportTo, openTele, closeTele, worldSpec, homeSpec, openEditor, closeEditor, toggleSit, doEmote, syncOthers,
     Weather, Home, castSpell, spellLeft, mySpells, SPELL_CD, npcAtt, npcReact, togglePanel, closePanels, wardGet, wardWear, wardStore, wearLook, buildOn, buildOff, buildClick, hCanPlace,
     setZoom, getZoom, zoomLevels, ZOOM, setSlowWalk, slowWalk, typingInput, typingOff, typingVisible, sysLine });
   Object.defineProperty(window.__T, 'VW', { get: () => VW }); Object.defineProperty(window.__T, 'SCALE', { get: () => SCALE });

@@ -342,6 +342,9 @@
     _typingTimer: 0,    // host: expiry sweep
     _myHome: undefined, // own layout set via setHome (kept across sessions of this page)
     _homes: {},         // client: ownerId -> {owner, name, home} received with homeInfo
+    _openHomes: [],     // client: [{owner, name}] cells open to everyone (host broadcasts 'homes')
+    _invites: {},       // ownerId -> {owner, name} from 'homeinvite'
+    _openSig: '',       // host: last broadcast open-cells list (JSON)
 
     on: function (evt, cb) {
       if (typeof cb !== 'function') return function () {};
@@ -599,6 +602,58 @@
       return true;
     },
     homeAccess: function () { return this._me ? this._me.homeAccess || 'invite' : 'invite'; },
+    // Cells open to everyone ('open' access), without mine: [{owner, name}]. Updated via event 'homes'.
+    openHomes: function () {
+      var myId = this._me && this._me.id;
+      var src = this._mode === 'host' || this._mode === 'offline' ? this._hostOpenHomes() : this._openHomes;
+      return src.filter(function (h) { return h.owner !== myId; }).map(function (h) { return { owner: h.owner, name: h.name }; });
+    },
+    // What I know about a cell before entering it: {owner, name, home, open, invited} or null.
+    homeInfo: function (id) {
+      if (!id || typeof id !== 'string') return null;
+      if (id.slice(0, 5) === 'home:') id = id.slice(5);
+      var out = { owner: id, name: null, home: null, open: false, invited: !!this._invites[id] };
+      var known = false;
+      var rec = this._me && this._me.id === id ? this._me : (this._mode === 'host' ? this._peers[id] : this._others[id]);
+      if (rec) { out.name = rec.name; known = true; }
+      var c = this._homes[id];
+      if (c) { if (!out.name) out.name = c.name; known = true; }
+      if (this._invites[id]) { if (!out.name) out.name = this._invites[id].name; known = true; }
+      var list = this._mode === 'host' || this._mode === 'offline' ? this._hostOpenHomes() : this._openHomes;
+      for (var i = 0; i < list.length; i++) if (list[i].owner === id) { out.open = true; if (!out.name) out.name = list[i].name; known = true; }
+      if (this._mode === 'host' && rec) out.open = rec.homeAccess === 'open';
+      out.home = this.homeOf(id);
+      return known ? out : null;
+    },
+    _hostOpenHomes: function () {
+      var out = [];
+      if (!this._me || !this._started) return out;
+      var all = [this._me];
+      for (var id in this._peers) all.push(this._peers[id]);
+      for (var i = 0; i < all.length; i++) if (all[i].id && all[i].homeAccess === 'open') out.push({ owner: all[i].id, name: all[i].name });
+      return out;
+    },
+    // Host: broadcast the open-cells list to everyone when it changed.
+    _pushOpenHomes: function (force) {
+      if (this._mode !== 'host' && this._mode !== 'offline') return;
+      var list = this._hostOpenHomes();
+      var sig = JSON.stringify(list);
+      if (!force && sig === this._openSig) return;
+      this._openSig = sig;
+      this._broadcast({ t: 'homes', list: list });
+      this._emit('homes', { list: this.openHomes() });
+    },
+    _gotHomes: function (m) {
+      var raw = Array.isArray(m.list) ? m.list.slice(0, MAX_PLAYERS) : [];
+      var out = [];
+      for (var i = 0; i < raw.length; i++) {
+        var h = raw[i];
+        if (!h || typeof h.owner !== 'string' || !h.owner) continue;
+        out.push({ owner: stripCtrl(h.owner).slice(0, 60), name: sanitizeName(h.name) });
+      }
+      this._openHomes = out;
+      this._emit('homes', { list: this.openHomes() });
+    },
     homeInvite: function (id) { return this._homeGuest(id, true); },
     homeUninvite: function (id) { return this._homeGuest(id, false); },
     _homeGuest: function (id, on) {
@@ -656,13 +711,14 @@
         p.homeGuests[inv] = true;
         var g = this._playerById(inv);
         var note = { owner: p.id, name: p.name, room: 'home:' + p.id };
-        if (g === this._me) this._emit('homeinvite', note);
+        if (g === this._me) { this._invites[p.id] = { owner: p.id, name: p.name }; this._emit('homeinvite', note); }
         else this._safeSend(g.conn, { t: 'homeInvite', owner: note.owner, name: note.name, room: note.room });
       }
       var un = typeof m.uninvite === 'string' ? stripCtrl(m.uninvite).slice(0, 60) : '';
       if (un) delete p.homeGuests[un];
       if (p !== this._me) this._safeSend(p.conn, { t: 'homeAccessAck', mode: p.homeAccess, guests: Object.keys(p.homeGuests) });
       this._evictHomeGuests(p, false);
+      this._pushOpenHomes();
     },
     // Sends visitors who may no longer stay (or everyone, when the owner left) back to the hub.
     _evictHomeGuests: function (owner, all) {
@@ -841,6 +897,9 @@
       this._me = blankMe('', nm, look);
       if (this._myHome !== undefined) this._me.home = this._myHome;
       this._homes = {};
+      this._openHomes = [];
+      this._invites = {};
+      this._openSig = '';
       this._autoHome();
       this._me.persistId = this._persistId;
       this._others = {};
@@ -1046,7 +1105,8 @@
           players: this._playersOnMap(p.map, id),
           now: now(),
           events: this.events(),
-          world: this.worldState()
+          world: this.worldState(),
+          homes: this._hostOpenHomes()
         });
         this._emit('joined', { id: id, name: name });
         this._broadcast({ t: 'joined', id: id, name: name }, { except: id });
@@ -1098,6 +1158,7 @@
       if (this._me && this._me.homeGuests) delete this._me.homeGuests[id];
       for (var oid in this._peers) if (this._peers[oid].homeGuests) delete this._peers[oid].homeGuests[id];
       this._emit('left', { id: id, name: name });
+      if (p.homeAccess === 'open') this._pushOpenHomes();
       this._broadcast({ t: 'left', id: id, name: name });
       this._pushPlayers(map);
     },
@@ -1455,7 +1516,13 @@
           this._gotHomeInfo(m);
           break;
         case 'homeInvite':
-          this._emit('homeinvite', { owner: stripCtrl(m.owner).slice(0, 60), name: sanitizeName(m.name), room: 'home:' + stripCtrl(m.owner).slice(0, 60) });
+          var invO = stripCtrl(m.owner).slice(0, 60);
+          if (!invO) break;
+          this._invites[invO] = { owner: invO, name: sanitizeName(m.name) };
+          this._emit('homeinvite', { owner: invO, name: this._invites[invO].name, room: 'home:' + invO });
+          break;
+        case 'homes':
+          this._gotHomes(m);
           break;
         case 'homeAccessAck':
           if (this._me) {
@@ -1579,6 +1646,7 @@
           if (wk && wv !== undefined && wv !== null) this._wstate[wk] = wv;
         }
       }
+      if (Array.isArray(m.homes)) this._gotHomes({ list: m.homes });
       var wait = this._joinWait;
       this._joinWait = null;
       if (wait && wait.settle) wait.settle();
@@ -1697,6 +1765,9 @@
       this._skew = 0;
       this._typingSent = false;
       this._homes = {};
+      this._openHomes = [];
+      this._invites = {};
+      this._openSig = '';
       if (this._typingTimer) { clearInterval(this._typingTimer); this._typingTimer = 0; }
       var self = this;
       setTimeout(function () { self._leaving = false; }, 50);

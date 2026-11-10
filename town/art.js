@@ -841,6 +841,81 @@ const BUILTIN = {
   }
   function prepLook(look) { const L = normLook(look); Object.defineProperty(L, '__n', { value: true, enumerable: false }); return L; }
 
+  // ---------- особые персонажи (v5): Нефритта, жительница кельи. Рисуется по подсказкам LORE.HOME_NPC.look ----------
+  const ccache = new Map();
+  function customSprite(look, dir, pose, frame, blink) {
+    const k = 'nef' + JSON.stringify(look || {}) + dir + pose + frame + (blink ? 1 : 0); let s = ccache.get(k); if (s) return s;
+    if (ccache.size > 300) ccache.clear();
+    const L = Object.assign({ hairC: '#bfe3ff', horns: '#3a7bd5', earring: '#e0303a', marks: '#4aa8ff', blush: true, jacket: '#141414', dress: '#4a2340', tail: '#d8304a', glasses: 'round' }, look || {});
+    const raw = document.createElement('canvas'); raw.width = SW; raw.height = SH; const g = raw.getContext('2d');
+    const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    const d = dir === 'right' ? 'left' : dir, side = d === 'left', back = d === 'up';
+    const sit = pose === 'sit', walk = pose === 'walk', dy = sit ? 5 : 0;
+    const skin = '#f6ded2', skinS = sh(skin, -.12), hair = L.hairC, hairS = sh(hair, -.2), hairL = sh(hair, .15), jk = L.jacket, jkL = sh(jk, .35), dr = L.dress, drS = sh(dr, -.25), drL = sh(dr, .2);
+    const hx = CX - 6, hy = 31 + dy;
+    const tail = front => { // тонкий хвост с сердечком
+      const sw = [0, 1, 0, -1][frame % 4] * (walk ? 2 : 1), tc = L.tail;
+      const pts = side ? [[CX + 4, 56], [CX + 7, 57], [CX + 10, 56], [CX + 12, 54], [CX + 13, 52 + sw]] : back ? [[CX, 56], [CX + 1, 58], [CX + 3, 60], [CX + 6, 59], [CX + 8, 56 + sw]] : [[CX + 5, 56], [CX + 8, 57], [CX + 10, 56], [CX + 12, 53], [CX + 12, 50 + sw]];
+      if (front !== back) return;
+      for (const [x, y] of pts) R(x, y + dy, 2, 1, tc);
+      const [tx, ty] = pts[pts.length - 1], y0 = ty + dy - 4; // сердечко
+      R(tx - 1, y0, 2, 2, tc); R(tx + 2, y0, 2, 2, tc); R(tx - 1, y0 + 1, 5, 2, tc); R(tx, y0 + 3, 3, 1, tc); R(tx + 1, y0 + 4, 1, 1, tc); R(tx - 1, y0, 1, 1, sh(tc, .35));
+    };
+    tail(false);
+    // волосы сзади (длинные, до лопаток)
+    if (!back) { R(hx - 2, hy + 4, 3, 15, hairS); R(hx + 11, hy + 4, 3, 15, hairS); }
+    // ноги
+    const lo = walk ? [[0, -1], [0, 0], [-1, 0], [0, 0]][frame % 4] : [0, 0];
+    if (sit) { R(CX - 5, 59, 4, 3, '#2a2030'); R(CX + 1, 59, 4, 3, '#2a2030'); R(CX - 5, 62, 4, 2, '#0e0a12'); R(CX + 1, 62, 4, 2, '#0e0a12'); }
+    else if (side) { R(CX - 2 + (walk ? lo[0] * 2 + 1 : 0), 62 + lo[1], 3, 5, '#2a2030'); R(CX + 1 - (walk ? lo[0] * 2 : 0), 62 - lo[1], 3, 5, '#3a2c40'); R(CX - 3 + (walk ? lo[0] * 2 + 1 : 0), 66 + lo[1], 4, 2, '#0e0a12'); R(CX, 66 - lo[1], 4, 2, '#0e0a12'); }
+    else { R(CX - 4, 62 + lo[1], 3, 5, '#2a2030'); R(CX + 1, 62 - lo[1] + (walk ? lo[0] : 0), 3, 5, '#2a2030'); R(CX - 4, 66 + lo[1], 3, 2, '#0e0a12'); R(CX + 1, 66 - lo[1] + (walk ? lo[0] : 0), 3, 2, '#0e0a12'); R(CX - 4, 62, 3, 1, '#4a3a50'); R(CX + 1, 62, 3, 1, '#4a3a50'); }
+    // платье (сливовое, расклешённое)
+    const w0 = side ? 10 : 12, w1 = side ? 13 : 17;
+    for (let y = 53; y < 63; y++) { const w = Math.round(w0 + (w1 - w0) * (y - 53) / 9), x = CX - (w >> 1) + (side ? 1 : 0); R(x, y + dy, w, 1, y % 4 === 0 ? drS : dr); }
+    R(CX - (w1 >> 1) + (side ? 1 : 0), 62 + dy, w1, 1, drL);
+    // жакет
+    const jw = side ? 10 : 14, jx = CX - (jw >> 1) + (side ? 1 : 0);
+    R(jx, 44 + dy, jw, 11, jk); R(jx, 44 + dy, jw, 1, jkL); R(jx, 54 + dy, jw, 1, jkL);
+    if (!back && !side) { R(CX - 2, 45 + dy, 4, 8, dr); R(CX - 1, 45 + dy, 2, 3, drL); R(CX - 3, 45 + dy, 1, 9, jkL); R(CX + 2, 45 + dy, 1, 9, jkL); R(CX - 5, 49 + dy, 1, 1, '#c9a24a'); }
+    if (side) R(jx + jw - 3, 45 + dy, 2, 8, dr);
+    // руки (рукава жакета, кисти)
+    const sa = walk ? [1, 0, -1, 0][frame % 4] : 0, wave = pose === 'g:wave' || pose === 'g:aquila' || pose === 'g:sorcery';
+    let hands;
+    if (side) { R(CX - 1 + sa, 45 + dy, 3, 8, jkL); R(CX - 1 + sa, 53 + dy, 3, 2, skin); hands = [[CX - 1 + sa, 53 + dy]]; }
+    else { R(CX - 9, 45 + dy, 3, 8 - sa, jk); R(CX - 9, 53 + dy - sa, 3, 2, skin);
+      if (wave && !back) { const up = frame % 2; R(CX + 7, 38 + dy, 3, 8, jk); R(CX + 7 + up, 35 + dy, 3, 3, skin); hands = [[CX + 7 + up, 35 + dy]]; }
+      else { R(CX + 6, 45 + dy, 3, 8 + sa, jk); R(CX + 6, 53 + dy + sa, 3, 2, skin); hands = [[CX - 9, 53 + dy], [CX + 6, 53 + dy]]; } }
+    // шея, голова
+    R(CX - 2, 42 + dy, 4, 2, skinS);
+    R(hx + 1, hy, 10, 12, skin); R(hx, hy + 2, 12, 8, skin); R(hx + 1, hy + 11, 10, 1, skinS);
+    // эльфийские уши с красными серёжками-кристаллами
+    const ear = (x, dirx) => { R(x, hy + 5, 2, 3, skin); R(x + dirx * 2, hy + 4, 2, 2, skin); R(x + dirx * 3, hy + 3, 1, 1, skin); R(x, hy + 8, 1, 2, L.earring); R(x, hy + 10, 1, 1, sh(L.earring, -.3)); R(x, hy + 8, 1, 1, '#ff9aa0'); };
+    if (side) ear(hx + 9, 1); else { ear(hx - 1, -1); ear(hx + 11, 1); }
+    // волосы
+    R(hx - 1, hy - 2, 14, 4, hair); R(hx, hy - 3, 12, 1, hair); R(hx + 2, hy - 3, 6, 1, hairL);
+    if (back) { R(hx - 1, hy + 1, 14, 10, hair); R(hx - 2, hy + 4, 16, 14, hair); for (let i = 0; i < 6; i++) R(hx - 1 + i * 3, hy + 6 + (i % 2) * 3, 1, 10, hairS); R(hx - 1, hy + 17, 14, 1, hairS); }
+    else if (side) { R(hx + 4, hy - 2, 9, 12, hair); R(hx + 6, hy + 8, 7, 10, hair); R(hx + 7, hy + 10, 1, 7, hairS); R(hx - 1, hy + 1, 5, 2, hair); R(hx - 1, hy + 3, 2, 1, hair); }
+    else { R(hx - 1, hy + 1, 3, 8, hair); R(hx + 10, hy + 1, 3, 8, hair); R(hx + 1, hy + 1, 4, 2, hair); R(hx + 6, hy + 1, 5, 2, hair); R(hx + 4, hy + 1, 2, 1, hair); R(hx + 2, hy + 3, 1, 1, hair); R(hx + 9, hy + 3, 1, 1, hair); R(hx + 3, hy - 1, 2, 1, hairL); }
+    // рожки
+    const horn = (x, s) => { R(x, hy - 4, 2, 2, L.horns); R(x + s, hy - 6, 2, 2, L.horns); R(x + s * 2, hy - 7, 1, 1, sh(L.horns, .3)); R(x, hy - 3, 2, 1, sh(L.horns, -.25)); };
+    if (side) horn(hx + 5, -1); else { horn(hx + 1, -1); horn(hx + 9, 1); }
+    // лицо
+    if (!back) {
+      const eyes = side ? [hx + 1] : [hx + 2, hx + 7], ey = hy + 5;
+      for (const ex of eyes) { if (blink) R(ex, ey + 2, 3, 1, '#2a1a2a'); else { R(ex, ey + 1, 3, 2, '#ffffff'); R(ex + 1, ey + 1, 2, 2, '#3a6ad8'); R(ex + 1, ey + 1, 1, 1, '#0e0a1a'); }
+        if (L.glasses) { const gc = '#2a2430'; R(ex - 1, ey, 5, 1, gc); R(ex - 1, ey + 3, 5, 1, gc); R(ex - 1, ey + 1, 1, 2, gc); R(ex + 3, ey + 1, 1, 2, gc); R(ex, ey, 1, 1, '#9ad8ff'); } }
+      if (!side && L.glasses) R(hx + 6, ey + 1, 1, 1, '#2a2430');
+      if (side && L.glasses) R(hx + 4, ey + 1, 4, 1, '#2a2430');
+      const mx = side ? [hx] : [hx + 1, hx + 10]; for (const x of mx) { R(x, ey + 4, 1, 2, L.marks); R(x + (x > hx + 5 ? 0 : 0), ey + 6, 1, 1, sh(L.marks, -.2)); }
+      if (L.blush) { const bc = 'rgba(255,110,140,.75)'; if (side) R(hx + 2, ey + 5, 2, 1, bc); else { R(hx + 2, ey + 5, 2, 1, bc); R(hx + 8, ey + 5, 2, 1, bc); } }
+      R(side ? hx + 1 : hx + 5, hy + 10, 2, 1, '#c04a6a');
+    }
+    tail(true);
+    let c = outline(raw), tip = hands[hands.length - 1], head = [hx, hy];
+    if (dir === 'right') { const m = document.createElement('canvas'); m.width = SW; m.height = SH; const mg = m.getContext('2d'); mg.translate(SW, 0); mg.scale(-1, 1); mg.drawImage(c, 0, 0); c = m; tip = [SW - tip[0], tip[1]]; hands = hands.map(h => [SW - h[0] - 3, h[1]]); head = [SW - head[0] - 12, head[1]]; }
+    s = { c, ax: CX, ay: FLN, tip, hands, head, top: topRow(c) }; ccache.set(k, s); return s;
+  }
+
   // ---------- сервочереп ----------
   function skull(g, x, y, t, E) {
     const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x + a), Math.round(y + b), w, h); };
@@ -885,5 +960,5 @@ const BUILTIN = {
     return (emoCache[id] = c);
   }
 
-  return { GEST, GEST_POSE, FACE, FACE_DEF, ARCH, FACTIONS: FL, SIDES, resolveFaction, featOf, PAL, defaultLook, normLook, prepLook, sprite, skull, EMO, EMO_ORDER, emoIcon, sh, mix, hexRGB, OUT, SW, SH, migrateExt: EXT && typeof EXT.migrate === 'function' ? EXT.migrate.bind(EXT) : null, validExt: EXT && typeof EXT.valid === 'function' ? EXT.valid.bind(EXT) : null };
+  return { GEST, GEST_POSE, FACE, FACE_DEF, ARCH, FACTIONS: FL, SIDES, resolveFaction, featOf, PAL, defaultLook, normLook, prepLook, sprite, customSprite, skull, EMO, EMO_ORDER, emoIcon, sh, mix, hexRGB, OUT, SW, SH, migrateExt: EXT && typeof EXT.migrate === 'function' ? EXT.migrate.bind(EXT) : null, validExt: EXT && typeof EXT.valid === 'function' ? EXT.valid.bind(EXT) : null };
 })();

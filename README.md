@@ -4,6 +4,8 @@
 
 **[Играть](https://ariman765.github.io/Ahriman-game/)**
 
+Кооператив (бета): https://ariman765.github.io/Ahriman-game/coop/
+
 ![Меню](screenshot.png)
 
 ## Управление
